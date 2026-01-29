@@ -67,6 +67,99 @@ export type Database = {
           },
         ]
       }
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_read: boolean | null
+          message: string
+          name: string
+          phone: string | null
+          responded_at: string | null
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          name: string
+          phone?: string | null
+          responded_at?: string | null
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          name?: string
+          phone?: string | null
+          responded_at?: string | null
+          subject?: string | null
+        }
+        Relationships: []
+      }
+      dental_labs: {
+        Row: {
+          accepts_digital: boolean | null
+          address: string | null
+          average_turnaround_days: number | null
+          city: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phone: string | null
+          rating: number | null
+          slug: string
+          specialties: string[] | null
+          supported_formats: string[] | null
+          total_orders: number | null
+          website: string | null
+        }
+        Insert: {
+          accepts_digital?: boolean | null
+          address?: string | null
+          average_turnaround_days?: number | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phone?: string | null
+          rating?: number | null
+          slug: string
+          specialties?: string[] | null
+          supported_formats?: string[] | null
+          total_orders?: number | null
+          website?: string | null
+        }
+        Update: {
+          accepts_digital?: boolean | null
+          address?: string | null
+          average_turnaround_days?: number | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phone?: string | null
+          rating?: number | null
+          slug?: string
+          specialties?: string[] | null
+          supported_formats?: string[] | null
+          total_orders?: number | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       financing_plans: {
         Row: {
           created_at: string
@@ -399,6 +492,173 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_order_tracking: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_order_tracking_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "lab_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_orders: {
+        Row: {
+          actual_delivery: string | null
+          created_at: string
+          design_file_format: string | null
+          design_file_url: string | null
+          doctor_id: string
+          estimated_delivery: string | null
+          id: string
+          material: string | null
+          notes: string | null
+          order_number: string
+          patient_id: string | null
+          priority: string | null
+          selected_lab_id: string | null
+          shade: string | null
+          status: string | null
+          tooth_numbers: string[] | null
+          updated_at: string
+          work_type: string
+        }
+        Insert: {
+          actual_delivery?: string | null
+          created_at?: string
+          design_file_format?: string | null
+          design_file_url?: string | null
+          doctor_id: string
+          estimated_delivery?: string | null
+          id?: string
+          material?: string | null
+          notes?: string | null
+          order_number: string
+          patient_id?: string | null
+          priority?: string | null
+          selected_lab_id?: string | null
+          shade?: string | null
+          status?: string | null
+          tooth_numbers?: string[] | null
+          updated_at?: string
+          work_type: string
+        }
+        Update: {
+          actual_delivery?: string | null
+          created_at?: string
+          design_file_format?: string | null
+          design_file_url?: string | null
+          doctor_id?: string
+          estimated_delivery?: string | null
+          id?: string
+          material?: string | null
+          notes?: string | null
+          order_number?: string
+          patient_id?: string | null
+          priority?: string | null
+          selected_lab_id?: string | null
+          shade?: string | null
+          status?: string | null
+          tooth_numbers?: string[] | null
+          updated_at?: string
+          work_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_orders_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_selected_lab_id_fkey"
+            columns: ["selected_lab_id"]
+            isOneToOne: false
+            referencedRelation: "dental_labs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_quotes: {
+        Row: {
+          created_at: string
+          currency: string | null
+          id: string
+          lab_id: string
+          notes: string | null
+          order_id: string
+          price: number
+          status: string | null
+          turnaround_days: number
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          id?: string
+          lab_id: string
+          notes?: string | null
+          order_id: string
+          price: number
+          status?: string | null
+          turnaround_days: number
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          id?: string
+          lab_id?: string
+          notes?: string | null
+          order_id?: string
+          price?: number
+          status?: string | null
+          turnaround_days?: number
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_quotes_lab_id_fkey"
+            columns: ["lab_id"]
+            isOneToOne: false
+            referencedRelation: "dental_labs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_quotes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "lab_orders"
             referencedColumns: ["id"]
           },
         ]
