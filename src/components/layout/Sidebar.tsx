@@ -7,11 +7,13 @@ import {
   MessageSquare, 
   Settings, 
   FileText,
-  DollarSign,
+  TrendingUp,
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  LogOut
+  LogOut,
+  Receipt,
+  Wallet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,7 +24,9 @@ const menuItems = [
   { icon: Calendar, label: "Agenda", path: "/agenda" },
   { icon: Users, label: "Pacientes", path: "/pacientes" },
   { icon: FileText, label: "Tratamientos", path: "/tratamientos" },
-  { icon: DollarSign, label: "Finanzas", path: "/finanzas" },
+  { icon: TrendingUp, label: "Rentabilidad", path: "/finanzas" },
+  { icon: Receipt, label: "Facturación", path: "/facturacion", badge: "DIAN" },
+  { icon: Wallet, label: "Cobros", path: "/cobros" },
   { icon: Sparkles, label: "Asistente IA", path: "/asistente-ia", isAI: true },
   { icon: MessageSquare, label: "Mensajes", path: "/mensajes" },
   { icon: Settings, label: "Configuración", path: "/configuracion" },
@@ -104,6 +108,14 @@ export function Sidebar() {
                   IA
                 </span>
               )}
+              {item.badge && !item.isAI && (
+                <span className={cn(
+                  "ml-auto px-2 py-0.5 rounded-full text-xs font-medium bg-success/20 text-success",
+                  isCollapsed && "hidden"
+                )}>
+                  {item.badge}
+                </span>
+              )}
             </Link>
           );
 
@@ -131,15 +143,15 @@ export function Sidebar() {
           isCollapsed && "justify-center"
         )}>
           <Avatar className="w-9 h-9 ring-2 ring-sidebar-primary ring-offset-2 ring-offset-sidebar">
-            <AvatarImage src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=faces" alt="Dr. María García" />
-            <AvatarFallback className="bg-primary text-primary-foreground text-sm">MG</AvatarFallback>
+            <AvatarImage src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=faces" alt="Dra. Ana María Rios Grajales" />
+            <AvatarFallback className="bg-primary text-primary-foreground text-sm">AR</AvatarFallback>
           </Avatar>
           <div className={cn(
             "flex-1 min-w-0 transition-all duration-300",
             isCollapsed && "hidden"
           )}>
             <p className="text-sm font-medium text-sidebar-foreground truncate">
-              Dra. María García
+              Dra. Ana María Rios
             </p>
             <p className="text-xs text-sidebar-foreground/60 truncate">
               Odontóloga General

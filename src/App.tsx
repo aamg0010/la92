@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Agenda from "./pages/Agenda";
 import Pacientes from "./pages/Pacientes";
+import Finanzas from "./pages/Finanzas";
+import Facturacion from "./pages/Facturacion";
+import Cobros from "./pages/Cobros";
 import AsistenteIA from "./pages/AsistenteIA";
 import { PlaceholderPage } from "./components/layout/PlaceholderPage";
 import NotFound from "./pages/NotFound";
@@ -23,7 +26,9 @@ const App = () => (
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/pacientes" element={<Pacientes />} />
           <Route path="/tratamientos" element={<PlaceholderPage title="Tratamientos" />} />
-          <Route path="/finanzas" element={<PlaceholderPage title="Finanzas" />} />
+          <Route path="/finanzas" element={<Finanzas />} />
+          <Route path="/facturacion" element={<Facturacion />} />
+          <Route path="/cobros" element={<Cobros />} />
           <Route path="/asistente-ia" element={<AsistenteIA />} />
           <Route path="/mensajes" element={<PlaceholderPage title="Mensajes" />} />
           <Route path="/configuracion" element={<PlaceholderPage title="Configuración" />} />

@@ -223,7 +223,7 @@ const AsistenteIA = () => {
 
                   {message.role === "user" && (
                     <Avatar className="w-8 h-8 shrink-0">
-                      <AvatarImage src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150" />
+                      <AvatarImage src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150" alt="Dra. Ana María Rios" />
                       <AvatarFallback className="bg-primary text-primary-foreground">
                         <User className="w-4 h-4" />
                       </AvatarFallback>
