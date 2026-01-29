@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Factory, 
   Upload, 
@@ -37,124 +38,22 @@ import {
   Send,
   Eye,
   DollarSign,
-  Timer,
   AlertCircle,
-  Cog
+  Cog,
+  File
 } from "lucide-react";
-
-// Mock data - en producción vendría de la base de datos
-const mockLabs = [
-  {
-    id: "1",
-    name: "Prisma Dental Lab",
-    slug: "prisma-dental",
-    website: "https://prismadentallab.amawebs.com",
-    specialties: ["CAD/CAM", "Zirconia", "E.max", "Implantes"],
-    supported_formats: ["STL", "3MF", "PLY"],
-    average_turnaround_days: 4,
-    rating: 4.8,
-    total_orders: 127
-  },
-  {
-    id: "2",
-    name: "Rapinucleos",
-    slug: "rapinucleos",
-    website: "https://www.rapinucleos.com",
-    specialties: ["Núcleos", "Postes", "Coronas", "CAD/CAM"],
-    supported_formats: ["STL", "3MF", "STEP"],
-    average_turnaround_days: 3,
-    rating: 4.9,
-    total_orders: 89
-  },
-  {
-    id: "3",
-    name: "Damildent",
-    slug: "damildent",
-    website: null,
-    specialties: ["Prótesis fija", "Coronas", "Puentes", "Metal-cerámica"],
-    supported_formats: ["STL", "3MF"],
-    average_turnaround_days: 5,
-    rating: 4.6,
-    total_orders: 156
-  },
-  {
-    id: "4",
-    name: "LabDental Elite",
-    slug: "labdental-elite",
-    website: null,
-    specialties: ["Ortodoncia", "Alineadores", "Retenedores"],
-    supported_formats: ["STL", "3MF"],
-    average_turnaround_days: 7,
-    rating: 4.7,
-    total_orders: 64
-  },
-  {
-    id: "5",
-    name: "Cerámicas Medellín",
-    slug: "ceramicas-medellin",
-    website: null,
-    specialties: ["Carillas", "Inlays", "Onlays", "Estratificación"],
-    supported_formats: ["STL"],
-    average_turnaround_days: 6,
-    rating: 4.5,
-    total_orders: 92
-  }
-];
-
-const mockOrders = [
-  {
-    id: "1",
-    order_number: "ORD-2024-001",
-    patient_name: "María García",
-    work_type: "Corona",
-    material: "Zirconia",
-    status: "in_production",
-    priority: "normal",
-    created_at: "2024-01-28",
-    estimated_delivery: "2024-02-02",
-    selected_lab: "Prisma Dental Lab",
-    quotes_count: 3
-  },
-  {
-    id: "2",
-    order_number: "ORD-2024-002",
-    patient_name: "Carlos López",
-    work_type: "Puente",
-    material: "E.max",
-    status: "pending_quotes",
-    priority: "urgente",
-    created_at: "2024-01-29",
-    estimated_delivery: null,
-    selected_lab: null,
-    quotes_count: 2
-  },
-  {
-    id: "3",
-    order_number: "ORD-2024-003",
-    patient_name: "Ana Martínez",
-    work_type: "Carillas",
-    material: "Porcelana",
-    status: "quoted",
-    priority: "normal",
-    created_at: "2024-01-27",
-    estimated_delivery: null,
-    selected_lab: null,
-    quotes_count: 3
-  },
-  {
-    id: "4",
-    order_number: "ORD-2024-004",
-    patient_name: "Pedro Sánchez",
-    work_type: "Implante",
-    material: "Titanio",
-    status: "completed",
-    priority: "normal",
-    created_at: "2024-01-20",
-    estimated_delivery: "2024-01-25",
-    selected_lab: "Rapinucleos",
-    quotes_count: 3
-  }
-];
+import { 
+  useDentalLabs, 
+  useLabOrders, 
+  useLabOrderStats,
+  useCreateLabOrder,
+  useUploadDesignFile,
+  generateOrderNumber,
+  type DentalLab 
+} from "@/hooks/useDentalLabs";
+import { useSearchPatients } from "@/hooks/usePatients";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const workTypes = [
   "Corona",
@@ -185,7 +84,7 @@ const shades = [
   "D2", "D3", "D4"
 ];
 
-const getStatusBadge = (status: string) => {
+const getStatusBadge = (status: string | null) => {
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: React.ReactNode }> = {
     draft: { label: "Borrador", variant: "outline", icon: <FileCode className="w-3 h-3" /> },
     pending_quotes: { label: "Esperando cotizaciones", variant: "secondary", icon: <Clock className="w-3 h-3" /> },
@@ -195,7 +94,7 @@ const getStatusBadge = (status: string) => {
     delivered: { label: "Entregado", variant: "secondary", icon: <Truck className="w-3 h-3" /> }
   };
 
-  const config = statusConfig[status] || statusConfig.draft;
+  const config = statusConfig[status || "draft"] || statusConfig.draft;
   
   return (
     <Badge variant={config.variant} className="gap-1">
@@ -205,7 +104,7 @@ const getStatusBadge = (status: string) => {
   );
 };
 
-const getPriorityBadge = (priority: string) => {
+const getPriorityBadge = (priority: string | null) => {
   if (priority === "urgente") {
     return <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" />Urgente</Badge>;
   }
@@ -213,13 +112,128 @@ const getPriorityBadge = (priority: string) => {
 };
 
 export default function Laboratorios() {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    work_type: "",
+    material: "",
+    shade: "",
+    priority: "normal",
+    tooth_numbers: "",
+    notes: "",
+    patient_id: "",
+  });
 
-  const filteredOrders = mockOrders.filter(order => 
+  // Data hooks
+  const { data: labs, isLoading: labsLoading } = useDentalLabs();
+  const { data: orders, isLoading: ordersLoading } = useLabOrders();
+  const { data: stats, isLoading: statsLoading } = useLabOrderStats();
+  const { data: patientResults } = useSearchPatients(patientSearch);
+  
+  // Mutations
+  const createOrder = useCreateLabOrder();
+  const uploadFile = useUploadDesignFile();
+
+  const filteredOrders = orders?.filter(order => 
     order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.patient_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    (order.patient?.first_name + " " + order.patient?.last_name).toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validExtensions = ['.stl', '.3mf', '.ply'];
+      const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!validExtensions.includes(ext)) {
+        toast({
+          title: "Formato no soportado",
+          description: "Solo se permiten archivos STL, 3MF y PLY.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (file.size > 52428800) {
+        toast({
+          title: "Archivo muy grande",
+          description: "El tamaño máximo permitido es 50MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const handleSubmitOrder = async () => {
+    if (!formData.work_type || !formData.material) {
+      toast({
+        title: "Campos requeridos",
+        description: "Selecciona tipo de trabajo y material.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: "No autenticado",
+        description: "Debes iniciar sesión para crear órdenes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const orderNumber = generateOrderNumber();
+    let designFileUrl = null;
+    let designFileFormat = null;
+
+    // Upload file if selected
+    if (selectedFile) {
+      const result = await uploadFile.mutateAsync({
+        file: selectedFile,
+        orderNumber,
+      });
+      designFileUrl = result.path;
+      designFileFormat = selectedFile.name.split('.').pop()?.toUpperCase();
+    }
+
+    // Create order
+    await createOrder.mutateAsync({
+      order_number: orderNumber,
+      doctor_id: user.id,
+      work_type: formData.work_type,
+      material: formData.material,
+      shade: formData.shade || null,
+      priority: formData.priority,
+      tooth_numbers: formData.tooth_numbers ? formData.tooth_numbers.split(',').map(t => t.trim()) : null,
+      notes: formData.notes || null,
+      patient_id: formData.patient_id || null,
+      design_file_url: designFileUrl,
+      design_file_format: designFileFormat,
+      status: "pending_quotes",
+    });
+
+    // Reset form
+    setFormData({
+      work_type: "",
+      material: "",
+      shade: "",
+      priority: "normal",
+      tooth_numbers: "",
+      notes: "",
+      patient_id: "",
+    });
+    setSelectedFile(null);
+    setIsNewOrderOpen(false);
+  };
 
   return (
     <MainLayout>
@@ -247,29 +261,61 @@ export default function Laboratorios() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-4">
+                {/* Patient search */}
+                <div className="space-y-2">
+                  <Label>Paciente (opcional)</Label>
+                  <Input 
+                    placeholder="Buscar paciente..." 
+                    value={patientSearch}
+                    onChange={(e) => setPatientSearch(e.target.value)}
+                  />
+                  {patientResults && patientResults.length > 0 && (
+                    <div className="border rounded-md max-h-32 overflow-y-auto">
+                      {patientResults.map(p => (
+                        <button
+                          key={p.id}
+                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, patient_id: p.id }));
+                            setPatientSearch(`${p.first_name} ${p.last_name}`);
+                          }}
+                        >
+                          {p.first_name} {p.last_name} - {p.document_number}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tipo de trabajo *</Label>
-                    <Select>
+                    <Select 
+                      value={formData.work_type} 
+                      onValueChange={(v) => setFormData(prev => ({ ...prev, work_type: v }))}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar..." />
                       </SelectTrigger>
                       <SelectContent>
                         {workTypes.map(type => (
-                          <SelectItem key={type} value={type.toLowerCase()}>{type}</SelectItem>
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Material *</Label>
-                    <Select>
+                    <Select
+                      value={formData.material}
+                      onValueChange={(v) => setFormData(prev => ({ ...prev, material: v }))}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar..." />
                       </SelectTrigger>
                       <SelectContent>
                         {materials.map(mat => (
-                          <SelectItem key={mat} value={mat.toLowerCase()}>{mat}</SelectItem>
+                          <SelectItem key={mat} value={mat}>{mat}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -279,7 +325,10 @@ export default function Laboratorios() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Color/Tono</Label>
-                    <Select>
+                    <Select
+                      value={formData.shade}
+                      onValueChange={(v) => setFormData(prev => ({ ...prev, shade: v }))}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar tono..." />
                       </SelectTrigger>
@@ -292,7 +341,10 @@ export default function Laboratorios() {
                   </div>
                   <div className="space-y-2">
                     <Label>Prioridad</Label>
-                    <Select defaultValue="normal">
+                    <Select 
+                      value={formData.priority}
+                      onValueChange={(v) => setFormData(prev => ({ ...prev, priority: v }))}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -307,19 +359,47 @@ export default function Laboratorios() {
 
                 <div className="space-y-2">
                   <Label>Dientes afectados</Label>
-                  <Input placeholder="Ej: 11, 12, 21" />
+                  <Input 
+                    placeholder="Ej: 11, 12, 21" 
+                    value={formData.tooth_numbers}
+                    onChange={(e) => setFormData(prev => ({ ...prev, tooth_numbers: e.target.value }))}
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Archivo de diseño (STL/3MF)</Label>
-                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
-                    <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground mb-1">
-                      Arrastra tu archivo aquí o haz clic para seleccionar
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Formatos soportados: STL, 3MF, PLY (máx. 50MB)
-                    </p>
+                  <Label>Archivo de diseño (STL/3MF/PLY)</Label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".stl,.3mf,.ply"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <div 
+                    className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {selectedFile ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <File className="w-8 h-8 text-primary" />
+                        <div className="text-left">
+                          <p className="text-sm font-medium">{selectedFile.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Arrastra tu archivo aquí o haz clic para seleccionar
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Formatos soportados: STL, 3MF, PLY (máx. 50MB)
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -328,6 +408,8 @@ export default function Laboratorios() {
                   <Textarea 
                     placeholder="Instrucciones especiales, preferencias de color, observaciones..."
                     rows={3}
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                   />
                 </div>
 
@@ -335,9 +417,13 @@ export default function Laboratorios() {
                   <Button variant="outline" onClick={() => setIsNewOrderOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button className="gap-2">
+                  <Button 
+                    className="gap-2"
+                    onClick={handleSubmitOrder}
+                    disabled={createOrder.isPending || uploadFile.isPending}
+                  >
                     <Send className="w-4 h-4" />
-                    Solicitar Cotizaciones
+                    {createOrder.isPending ? "Enviando..." : "Solicitar Cotizaciones"}
                   </Button>
                 </div>
               </div>
@@ -352,7 +438,11 @@ export default function Laboratorios() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Órdenes Activas</p>
-                  <p className="text-2xl font-bold text-foreground">8</p>
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-12" />
+                  ) : (
+                    <p className="text-2xl font-bold text-foreground">{stats?.active || 0}</p>
+                  )}
                 </div>
                 <Package className="w-8 h-8 text-primary" />
               </div>
@@ -363,7 +453,11 @@ export default function Laboratorios() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">En Producción</p>
-                  <p className="text-2xl font-bold text-foreground">3</p>
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-12" />
+                  ) : (
+                    <p className="text-2xl font-bold text-foreground">{stats?.inProduction || 0}</p>
+                  )}
                 </div>
                 <Cog className="w-8 h-8 text-accent" />
               </div>
@@ -374,7 +468,11 @@ export default function Laboratorios() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Pendientes</p>
-                  <p className="text-2xl font-bold text-foreground">5</p>
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-12" />
+                  ) : (
+                    <p className="text-2xl font-bold text-foreground">{stats?.pending || 0}</p>
+                  )}
                 </div>
                 <Clock className="w-8 h-8 text-warning" />
               </div>
@@ -385,7 +483,11 @@ export default function Laboratorios() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Labs Conectados</p>
-                  <p className="text-2xl font-bold text-foreground">5</p>
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-12" />
+                  ) : (
+                    <p className="text-2xl font-bold text-foreground">{stats?.labsConnected || 0}</p>
+                  )}
                 </div>
                 <Factory className="w-8 h-8 text-success" />
               </div>
@@ -419,111 +521,161 @@ export default function Laboratorios() {
 
             {/* Orders List */}
             <div className="space-y-4">
-              {filteredOrders.map(order => (
-                <Card key={order.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <span className="font-mono text-sm font-medium text-primary">
-                            {order.order_number}
-                          </span>
-                          {getStatusBadge(order.status)}
-                          {getPriorityBadge(order.priority)}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4 text-sm">
-                          <span className="text-foreground font-medium">{order.patient_name}</span>
-                          <span className="text-muted-foreground">•</span>
-                          <span className="text-muted-foreground">{order.work_type} - {order.material}</span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {order.created_at}
-                          </span>
-                          {order.selected_lab && (
-                            <span className="flex items-center gap-1">
-                              <Factory className="w-3 h-3" />
-                              {order.selected_lab}
-                            </span>
-                          )}
-                          {order.estimated_delivery && (
-                            <span className="flex items-center gap-1">
-                              <Truck className="w-3 h-3" />
-                              Entrega: {order.estimated_delivery}
-                            </span>
-                          )}
-                          {order.quotes_count > 0 && (
-                            <Badge variant="outline" className="gap-1">
-                              <DollarSign className="w-3 h-3" />
-                              {order.quotes_count} cotizaciones
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="gap-2">
-                          <Eye className="w-4 h-4" />
-                          Ver Detalle
-                        </Button>
-                        {order.status === "quoted" && (
-                          <Button size="sm" className="gap-2">
-                            <CheckCircle2 className="w-4 h-4" />
-                            Seleccionar Lab
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+              {ordersLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <Skeleton className="h-20 w-full" />
+                    </CardContent>
+                  </Card>
+                ))
+              ) : filteredOrders.length === 0 ? (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No hay órdenes de laboratorio.</p>
+                    <Button className="mt-4" onClick={() => setIsNewOrderOpen(true)}>
+                      Crear primera orden
+                    </Button>
                   </CardContent>
                 </Card>
-              ))}
+              ) : (
+                filteredOrders.map(order => (
+                  <Card key={order.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="font-mono text-sm font-medium text-primary">
+                              {order.order_number}
+                            </span>
+                            {getStatusBadge(order.status)}
+                            {getPriorityBadge(order.priority)}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-4 text-sm">
+                            <span className="text-foreground font-medium">
+                              {order.patient ? `${order.patient.first_name} ${order.patient.last_name}` : "Sin paciente asignado"}
+                            </span>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground">{order.work_type} - {order.material}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {new Date(order.created_at).toLocaleDateString()}
+                            </span>
+                            {order.selected_lab && (
+                              <span className="flex items-center gap-1">
+                                <Factory className="w-3 h-3" />
+                                {order.selected_lab.name}
+                              </span>
+                            )}
+                            {order.estimated_delivery && (
+                              <span className="flex items-center gap-1">
+                                <Truck className="w-3 h-3" />
+                                Entrega: {order.estimated_delivery}
+                              </span>
+                            )}
+                            {order.design_file_url && (
+                              <Badge variant="outline" className="gap-1">
+                                <File className="w-3 h-3" />
+                                {order.design_file_format}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Eye className="w-4 h-4" />
+                            Ver Detalle
+                          </Button>
+                          {order.status === "quoted" && (
+                            <Button size="sm" className="gap-2">
+                              <CheckCircle2 className="w-4 h-4" />
+                              Seleccionar Lab
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="labs" className="space-y-4">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mockLabs.map(lab => (
-                <Card key={lab.id} className="hover:shadow-lg transition-all hover:-translate-y-1">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{lab.name}</CardTitle>
-                        <CardDescription className="flex items-center gap-2 mt-1">
-                          <Star className="w-4 h-4 text-warning fill-warning" />
-                          {lab.rating} · {lab.total_orders} órdenes
-                        </CardDescription>
+            {labsLoading ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <Skeleton className="h-40 w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {labs?.map((lab: DentalLab) => (
+                  <Card key={lab.id} className="hover:shadow-lg transition-all hover:-translate-y-1">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{lab.name}</CardTitle>
+                          <CardDescription>{lab.city}</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-1 bg-warning/10 px-2 py-1 rounded-full">
+                          <Star className="w-4 h-4 fill-warning text-warning" />
+                          <span className="text-sm font-medium text-warning">{Number(lab.rating).toFixed(1)}</span>
+                        </div>
                       </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex flex-wrap gap-1">
+                        {lab.specialties?.slice(0, 4).map((spec, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            {spec}
+                          </Badge>
+                        ))}
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Clock className="w-4 h-4" />
+                          <span>{lab.average_turnaround_days} días prom.</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Package className="w-4 h-4" />
+                          <span>{lab.total_orders} órdenes</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1">
+                        {lab.supported_formats?.map((format, i) => (
+                          <Badge key={i} variant="outline" className="text-xs gap-1">
+                            <FileCode className="w-3 h-3" />
+                            {format}
+                          </Badge>
+                        ))}
+                      </div>
+
                       {lab.website && (
-                        <a href={lab.website} target="_blank" rel="noopener noreferrer">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
+                        <a 
+                          href={lab.website} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Visitar sitio web
                         </a>
                       )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex flex-wrap gap-1">
-                      {lab.specialties.map(spec => (
-                        <Badge key={spec} variant="secondary" className="text-xs">
-                          {spec}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Timer className="w-4 h-4" />
-                        {lab.average_turnaround_days} días promedio
-                      </span>
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <FileCode className="w-4 h-4" />
-                        {lab.supported_formats.join(", ")}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
