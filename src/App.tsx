@@ -9,6 +9,7 @@ import Pacientes from "./pages/Pacientes";
 import Finanzas from "./pages/Finanzas";
 import Facturacion from "./pages/Facturacion";
 import Cobros from "./pages/Cobros";
+import Inventario from "./pages/Inventario";
 import AsistenteIA from "./pages/AsistenteIA";
 import { PlaceholderPage } from "./components/layout/PlaceholderPage";
 import NotFound from "./pages/NotFound";
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/pacientes" element={<Pacientes />} />
           <Route path="/tratamientos" element={<PlaceholderPage title="Tratamientos" />} />
+          <Route path="/inventario" element={<Inventario />} />
           <Route path="/finanzas" element={<Finanzas />} />
           <Route path="/facturacion" element={<Facturacion />} />
           <Route path="/cobros" element={<Cobros />} />

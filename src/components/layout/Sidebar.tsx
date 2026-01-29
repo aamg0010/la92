@@ -13,7 +13,8 @@ import {
   Sparkles,
   LogOut,
   Receipt,
-  Wallet
+  Wallet,
+  Package
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,6 +25,7 @@ const menuItems = [
   { icon: Calendar, label: "Agenda", path: "/agenda" },
   { icon: Users, label: "Pacientes", path: "/pacientes" },
   { icon: FileText, label: "Tratamientos", path: "/tratamientos" },
+  { icon: Package, label: "Inventario", path: "/inventario" },
   { icon: TrendingUp, label: "Rentabilidad", path: "/finanzas" },
   { icon: Receipt, label: "Facturación", path: "/facturacion", badge: "DIAN" },
   { icon: Wallet, label: "Cobros", path: "/cobros" },
