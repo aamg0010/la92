@@ -17,13 +17,14 @@ import {
   Award,
   ChevronRight,
   Instagram,
-  Facebook,
   Send,
-  CheckCircle2
+  CheckCircle2,
+  MessageCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { Logo } from "@/components/Logo";
 
 const services = [
   {
@@ -153,13 +154,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">92</span>
-            </div>
-            <div>
-              <h1 className="font-semibold text-foreground text-lg">Consultorio La 92</h1>
-              <p className="text-xs text-muted-foreground">Odontología Integral</p>
-            </div>
+            <Logo size="md" />
           </div>
           <nav className="hidden md:flex items-center gap-6">
             <a href="#servicios" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Servicios</a>
@@ -172,7 +167,7 @@ export default function LandingPage() {
                 Portal Clínico
               </Button>
             </Link>
-            <a href="tel:+573001234567">
+            <a href="tel:+576045927828">
               <Button size="sm" className="gap-2">
                 <Phone className="w-4 h-4" />
                 <span className="hidden sm:inline">Llamar ahora</span>
@@ -205,8 +200,9 @@ export default function LandingPage() {
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </a>
-              <a href="https://wa.me/573001234567" target="_blank" rel="noopener noreferrer">
+              <a href="https://wa.me/573206433524" target="_blank" rel="noopener noreferrer">
                 <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto">
+                  <MessageCircle className="w-4 h-4" />
                   WhatsApp
                 </Button>
               </a>
@@ -293,7 +289,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Ubicación</h3>
-                    <p className="text-muted-foreground">Calle 92 #45-30, El Poblado<br />Medellín, Colombia</p>
+                    <p className="text-muted-foreground">Calle 92 No. 51-00, Aranjuez<br />Medellín, Colombia</p>
                   </div>
                 </div>
 
@@ -303,17 +299,23 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Teléfono</h3>
-                    <p className="text-muted-foreground">+57 300 123 4567<br />+57 (4) 123 4567</p>
+                    <p className="text-muted-foreground">
+                      <a href="tel:+576045927828" className="hover:text-primary transition-colors">604 592 78 28</a>
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Mail className="w-5 h-5 text-primary" />
+                    <MessageCircle className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">Email</h3>
-                    <p className="text-muted-foreground">citas@consultoriola92.com<br />info@consultoriola92.com</p>
+                    <h3 className="font-semibold text-foreground">WhatsApp</h3>
+                    <p className="text-muted-foreground">
+                      <a href="https://wa.me/573206433524" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                        320 643 35 24
+                      </a>
+                    </p>
                   </div>
                 </div>
 
@@ -329,13 +331,13 @@ export default function LandingPage() {
               </div>
 
               <div className="flex gap-4 mt-8">
-                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" 
+                <a href="https://instagram.com/consultorio_.odontologico_" target="_blank" rel="noopener noreferrer" 
                    className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors">
                   <Instagram className="w-5 h-5 text-primary" />
                 </a>
-                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer"
+                <a href="https://wa.me/573206433524" target="_blank" rel="noopener noreferrer"
                    className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors">
-                  <Facebook className="w-5 h-5 text-primary" />
+                  <MessageCircle className="w-5 h-5 text-primary" />
                 </a>
               </div>
             </div>
@@ -439,19 +441,37 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="bg-sidebar-background text-sidebar-foreground py-12">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">92</span>
+                <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
+                  <path
+                    d="M25 35C25 25 35 15 50 15C65 15 75 25 75 35C75 45 72 50 70 58C68 66 65 78 60 85C57 90 53 90 50 90C47 90 43 90 40 85C35 78 32 66 30 58C28 50 25 45 25 35Z"
+                    stroke="white"
+                    strokeWidth="4"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </div>
               <div>
                 <h3 className="font-semibold">Consultorio Odontológico La 92</h3>
                 <p className="text-sm text-sidebar-foreground/70">Tu sonrisa, nuestra pasión</p>
               </div>
             </div>
-            <p className="text-sm text-sidebar-foreground/70">
-              © 2024 Consultorio La 92. Todos los derechos reservados.
-            </p>
+            <div className="flex flex-col md:flex-row items-center gap-4 text-sm text-sidebar-foreground/70">
+              <span>Calle 92 No. 51-00, Aranjuez - Medellín</span>
+              <span className="hidden md:inline">•</span>
+              <span>Tel: 604 592 78 28</span>
+              <span className="hidden md:inline">•</span>
+              <a href="https://instagram.com/consultorio_.odontologico_" target="_blank" rel="noopener noreferrer" className="hover:text-sidebar-foreground transition-colors">
+                @consultorio_.odontologico_
+              </a>
+            </div>
+          </div>
+          <div className="mt-8 pt-6 border-t border-sidebar-border text-center text-sm text-sidebar-foreground/50">
+            © {new Date().getFullYear()} Consultorio La 92. Todos los derechos reservados.
           </div>
         </div>
       </footer>
