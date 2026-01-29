@@ -6,8 +6,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Logo } from "@/components/Logo";
-import { Loader2, Mail, Lock, User } from "lucide-react";
+import { Loader2, Mail, Lock, User, Briefcase } from "lucide-react";
+
+type UserRole = "admin" | "doctor" | "assistant" | "accountant";
+
+const ROLES: { value: UserRole; label: string; description: string }[] = [
+  { value: "admin", label: "Administrador", description: "Acceso completo al sistema" },
+  { value: "doctor", label: "Odontólogo", description: "Gestión de pacientes y citas" },
+  { value: "assistant", label: "Auxiliar", description: "Soporte en consultorio" },
+  { value: "accountant", label: "Contabilidad", description: "Gestión financiera" },
+];
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +32,7 @@ const Auth = () => {
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerName, setRegisterName] = useState("");
+  const [registerRole, setRegisterRole] = useState<UserRole>("doctor");
   const [error, setError] = useState("");
   
   const { signIn, signUp } = useAuth();
@@ -47,7 +64,7 @@ const Auth = () => {
       return;
     }
 
-    const { error } = await signUp(registerEmail, registerPassword, registerName);
+    const { error } = await signUp(registerEmail, registerPassword, registerName, registerRole);
     
     if (error) {
       setError(error.message);
@@ -189,6 +206,29 @@ const Auth = () => {
                         required
                         minLength={6}
                       />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-role">Rol en la clínica</Label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
+                      <Select value={registerRole} onValueChange={(value: UserRole) => setRegisterRole(value)}>
+                        <SelectTrigger className="pl-10">
+                          <SelectValue placeholder="Selecciona tu rol" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLES.map((role) => (
+                            <SelectItem key={role.value} value={role.value}>
+                              <div>
+                                <span className="font-medium">{role.label}</span>
+                                <span className="text-muted-foreground ml-2 text-xs">
+                                  — {role.description}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </CardContent>

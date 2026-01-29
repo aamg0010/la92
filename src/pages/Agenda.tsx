@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useAppointments } from "@/hooks/useAppointments";
 import { format, startOfWeek, addDays, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import { NewAppointmentDialog } from "@/components/appointments/NewAppointmentDialog";
 
 const timeSlots = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
@@ -117,10 +118,14 @@ const Agenda = () => {
                 <Filter className="h-4 w-4 mr-2" />
                 Filtrar
               </Button>
-              <Button className="bg-primary hover:bg-primary/90">
-                <Plus className="h-4 w-4 mr-2" />
-                Nueva Cita
-              </Button>
+              <NewAppointmentDialog
+                trigger={
+                  <Button className="bg-primary hover:bg-primary/90">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nueva Cita
+                  </Button>
+                }
+              />
             </div>
           </div>
 

@@ -3,11 +3,13 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+type AppRole = "admin" | "doctor" | "assistant" | "accountant";
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, role?: AppRole) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -40,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, role: AppRole = "doctor") => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -49,13 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           emailRedirectTo: window.location.origin,
           data: {
             full_name: fullName,
+            role: role,
           },
         },
       });
 
       if (error) throw error;
 
-      // Create profile and assign default role
+      // Create profile and assign selected role
       if (data.user) {
         // Create profile
         const { error: profileError } = await supabase
@@ -69,12 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("Error creating profile:", profileError);
         }
 
-        // Assign default 'doctor' role
+        // Assign selected role
         const { error: roleError } = await supabase
           .from("user_roles")
           .insert({
             user_id: data.user.id,
-            role: "doctor",
+            role: role,
           });
 
         if (roleError) {
