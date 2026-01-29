@@ -1,0 +1,13 @@
+-- Update is_clinic_staff function to include accountant role
+CREATE OR REPLACE FUNCTION public.is_clinic_staff(_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.user_roles
+        WHERE user_id = _user_id AND role IN ('admin', 'doctor', 'assistant', 'accountant')
+    )
+$$;

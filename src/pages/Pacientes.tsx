@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { usePatients, type Patient } from "@/hooks/usePatients";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
+import { NewPatientDialog } from "@/components/patients/NewPatientDialog";
+import { NewAppointmentDialog } from "@/components/appointments/NewAppointmentDialog";
 
 const getPatientStatus = (patient: Patient): "active" | "inactive" | "new" => {
   const daysSinceCreated = differenceInDays(new Date(), parseISO(patient.created_at));
@@ -102,10 +104,7 @@ const Pacientes = () => {
                   <h1 className="text-2xl font-display font-bold text-foreground">
                     Pacientes
                   </h1>
-                  <Button className="bg-primary hover:bg-primary/90">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nuevo
-                  </Button>
+                  <NewPatientDialog />
                 </div>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -283,10 +282,14 @@ const Pacientes = () => {
                 <div className="p-6">
                   <h3 className="text-sm font-medium text-muted-foreground mb-4">Acciones</h3>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <Button variant="outline" className="flex-col h-auto py-4">
-                      <Calendar className="w-5 h-5 mb-2 text-primary" />
-                      <span className="text-xs">Agendar Cita</span>
-                    </Button>
+                    <NewAppointmentDialog
+                      trigger={
+                        <Button variant="outline" className="flex-col h-auto py-4 w-full">
+                          <Calendar className="w-5 h-5 mb-2 text-primary" />
+                          <span className="text-xs">Agendar Cita</span>
+                        </Button>
+                      }
+                    />
                     <Button variant="outline" className="flex-col h-auto py-4">
                       <FileText className="w-5 h-5 mb-2 text-primary" />
                       <span className="text-xs">Historia Clínica</span>
