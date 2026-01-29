@@ -15,7 +15,7 @@ export const ROLE_PERMISSIONS: Record<AppRole, string[]> = {
   admin: [
     "/dashboard", "/agenda", "/pacientes", "/tratamientos", "/inventario",
     "/laboratorios", "/finanzas", "/facturacion", "/cobros", "/asistente-ia",
-    "/mensajes", "/configuracion"
+    "/mensajes", "/configuracion", "/administracion"
   ],
   doctor: [
     "/dashboard", "/agenda", "/pacientes", "/tratamientos", "/inventario",
