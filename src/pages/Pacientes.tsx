@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,92 +14,25 @@ import {
   Calendar,
   FileText,
   ChevronRight,
+  Loader2,
+  UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePatients, type Patient } from "@/hooks/usePatients";
+import { format, parseISO, differenceInDays } from "date-fns";
+import { es } from "date-fns/locale";
 
-interface Patient {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  avatar?: string;
-  lastVisit: string;
-  nextAppointment?: string;
-  totalVisits: number;
-  status: "active" | "inactive" | "new";
-  balance: number;
-}
-
-const patients: Patient[] = [
-  {
-    id: "1",
-    name: "Carlos Mendoza Pérez",
-    email: "carlos.mendoza@email.com",
-    phone: "+57 300 123 4567",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
-    lastVisit: "2024-01-28",
-    nextAppointment: "2024-02-15 10:00",
-    totalVisits: 12,
-    status: "active",
-    balance: 0,
-  },
-  {
-    id: "2",
-    name: "Ana Lucía Torres García",
-    email: "ana.torres@email.com",
-    phone: "+57 301 234 5678",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
-    lastVisit: "2024-01-25",
-    totalVisits: 8,
-    status: "active",
-    balance: 250000,
-  },
-  {
-    id: "3",
-    name: "Roberto Jiménez Silva",
-    email: "roberto.j@email.com",
-    phone: "+57 302 345 6789",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150",
-    lastVisit: "2024-01-20",
-    nextAppointment: "2024-02-10 14:00",
-    totalVisits: 5,
-    status: "active",
-    balance: 0,
-  },
-  {
-    id: "4",
-    name: "María Fernanda Ruiz López",
-    email: "maria.ruiz@email.com",
-    phone: "+57 303 456 7890",
-    lastVisit: "2023-12-15",
-    totalVisits: 3,
-    status: "inactive",
-    balance: 150000,
-  },
-  {
-    id: "5",
-    name: "José García López",
-    email: "jose.garcia@email.com",
-    phone: "+57 304 567 8901",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150",
-    lastVisit: "2024-01-29",
-    totalVisits: 1,
-    status: "new",
-    balance: 0,
-  },
-  {
-    id: "6",
-    name: "Laura Martínez Rodríguez",
-    email: "laura.m@email.com",
-    phone: "+57 305 678 9012",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150",
-    lastVisit: "2024-01-22",
-    nextAppointment: "2024-02-18 11:00",
-    totalVisits: 15,
-    status: "active",
-    balance: 0,
-  },
-];
+const getPatientStatus = (patient: Patient): "active" | "inactive" | "new" => {
+  const daysSinceCreated = differenceInDays(new Date(), parseISO(patient.created_at));
+  if (daysSinceCreated <= 30) return "new";
+  
+  if (patient.updated_at) {
+    const daysSinceUpdate = differenceInDays(new Date(), parseISO(patient.updated_at));
+    if (daysSinceUpdate > 180) return "inactive";
+  }
+  
+  return "active";
+};
 
 const statusConfig = {
   active: { label: "Activo", className: "status-confirmed" },
@@ -109,21 +42,33 @@ const statusConfig = {
 
 const Pacientes = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(patients[0]);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
-  const filteredPatients = patients.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.phone.includes(searchQuery)
-  );
+  const { data: patients, isLoading } = usePatients();
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+  const filteredPatients = useMemo(() => {
+    if (!patients) return [];
+    if (!searchQuery) return patients;
+    
+    const query = searchQuery.toLowerCase();
+    return patients.filter(
+      (p) =>
+        p.first_name.toLowerCase().includes(query) ||
+        p.last_name.toLowerCase().includes(query) ||
+        p.document_number.includes(query) ||
+        p.phone.includes(query) ||
+        (p.email && p.email.toLowerCase().includes(query))
+    );
+  }, [patients, searchQuery]);
+
+  const selectedPatient = useMemo(() => {
+    if (!selectedPatientId || !patients) return patients?.[0] || null;
+    return patients.find(p => p.id === selectedPatientId) || patients[0] || null;
+  }, [selectedPatientId, patients]);
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "—";
+    return format(parseISO(dateStr), "d MMM yyyy", { locale: es });
   };
 
   const formatCurrency = (amount: number) => {
@@ -133,6 +78,16 @@ const Pacientes = () => {
       minimumFractionDigits: 0,
     }).format(amount);
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -170,39 +125,57 @@ const Pacientes = () => {
 
               {/* Patient List */}
               <div className="flex-1 overflow-y-auto scrollbar-thin">
-                {filteredPatients.map((patient) => (
-                  <div
-                    key={patient.id}
-                    onClick={() => setSelectedPatient(patient)}
-                    className={cn(
-                      "flex items-center gap-4 p-4 border-b border-border cursor-pointer transition-colors",
-                      selectedPatient?.id === patient.id
-                        ? "bg-primary/5 border-l-2 border-l-primary"
-                        : "hover:bg-muted/50"
-                    )}
-                  >
-                    <Avatar className="w-12 h-12">
-                      <AvatarImage src={patient.avatar} alt={patient.name} />
-                      <AvatarFallback className="bg-secondary text-secondary-foreground font-medium">
-                        {patient.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground truncate">
-                          {patient.name}
-                        </p>
-                        <Badge variant="outline" className={cn("text-xs shrink-0", statusConfig[patient.status].className)}>
-                          {statusConfig[patient.status].label}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {patient.phone}
-                      </p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                {filteredPatients.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+                    <UserPlus className="w-12 h-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">
+                      {searchQuery ? "No se encontraron pacientes" : "No hay pacientes registrados"}
+                    </p>
+                    <Button className="mt-4" size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Agregar primer paciente
+                    </Button>
                   </div>
-                ))}
+                ) : (
+                  filteredPatients.map((patient) => {
+                    const status = getPatientStatus(patient);
+                    const fullName = `${patient.first_name} ${patient.last_name}`;
+                    const initials = fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
+                    
+                    return (
+                      <div
+                        key={patient.id}
+                        onClick={() => setSelectedPatientId(patient.id)}
+                        className={cn(
+                          "flex items-center gap-4 p-4 border-b border-border cursor-pointer transition-colors",
+                          selectedPatient?.id === patient.id
+                            ? "bg-primary/5 border-l-2 border-l-primary"
+                            : "hover:bg-muted/50"
+                        )}
+                      >
+                        <Avatar className="w-12 h-12">
+                          <AvatarFallback className="bg-secondary text-secondary-foreground font-medium">
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-foreground truncate">
+                              {fullName}
+                            </p>
+                            <Badge variant="outline" className={cn("text-xs shrink-0", statusConfig[status].className)}>
+                              {statusConfig[status].label}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {patient.phone}
+                          </p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -216,17 +189,16 @@ const Pacientes = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-4">
                       <Avatar className="w-20 h-20 ring-4 ring-primary/20">
-                        <AvatarImage src={selectedPatient.avatar} alt={selectedPatient.name} />
                         <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-semibold">
-                          {selectedPatient.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          {`${selectedPatient.first_name} ${selectedPatient.last_name}`.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <h2 className="text-2xl font-display font-bold text-foreground">
-                          {selectedPatient.name}
+                          {selectedPatient.first_name} {selectedPatient.last_name}
                         </h2>
-                        <Badge variant="outline" className={cn("mt-2", statusConfig[selectedPatient.status].className)}>
-                          {statusConfig[selectedPatient.status].label}
+                        <Badge variant="outline" className={cn("mt-2", statusConfig[getPatientStatus(selectedPatient)].className)}>
+                          {statusConfig[getPatientStatus(selectedPatient)].label}
                         </Badge>
                       </div>
                     </div>
@@ -255,8 +227,35 @@ const Pacientes = () => {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Email</p>
-                        <p className="font-medium text-foreground truncate">{selectedPatient.email}</p>
+                        <p className="font-medium text-foreground truncate">{selectedPatient.email || "—"}</p>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Patient Info */}
+                <div className="p-6 border-b border-border">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-4">Información Personal</h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground">Documento</p>
+                      <p className="font-medium text-foreground">{selectedPatient.document_type}: {selectedPatient.document_number}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground">Fecha de nacimiento</p>
+                      <p className="font-medium text-foreground">{formatDate(selectedPatient.birth_date)}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground">Género</p>
+                      <p className="font-medium text-foreground">{selectedPatient.gender || "—"}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground">Ciudad</p>
+                      <p className="font-medium text-foreground">{selectedPatient.city || "—"}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                      <p className="text-xs text-muted-foreground">Dirección</p>
+                      <p className="font-medium text-foreground">{selectedPatient.address || "—"}</p>
                     </div>
                   </div>
                 </div>
@@ -264,35 +263,18 @@ const Pacientes = () => {
                 {/* Stats */}
                 <div className="p-6 border-b border-border">
                   <h3 className="text-sm font-medium text-muted-foreground mb-4">Resumen</h3>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="text-center p-4 rounded-xl bg-muted/50">
-                      <p className="text-2xl font-display font-bold text-foreground">{selectedPatient.totalVisits}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Visitas totales</p>
+                      <p className="text-lg font-display font-bold text-foreground">{formatDate(selectedPatient.created_at)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Fecha de registro</p>
                     </div>
                     <div className="text-center p-4 rounded-xl bg-muted/50">
-                      <p className="text-lg font-display font-bold text-foreground">{formatDate(selectedPatient.lastVisit)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Última visita</p>
+                      <p className="text-lg font-display font-bold text-foreground">{selectedPatient.health_insurance || "—"}</p>
+                      <p className="text-xs text-muted-foreground mt-1">EPS / Aseguradora</p>
                     </div>
                     <div className="text-center p-4 rounded-xl bg-muted/50">
-                      <p className="text-lg font-display font-bold text-foreground">
-                        {selectedPatient.nextAppointment 
-                          ? formatDate(selectedPatient.nextAppointment.split(' ')[0])
-                          : "—"
-                        }
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">Próxima cita</p>
-                    </div>
-                    <div className={cn(
-                      "text-center p-4 rounded-xl",
-                      selectedPatient.balance > 0 ? "bg-destructive/10" : "bg-success/10"
-                    )}>
-                      <p className={cn(
-                        "text-lg font-display font-bold",
-                        selectedPatient.balance > 0 ? "text-destructive" : "text-success"
-                      )}>
-                        {formatCurrency(selectedPatient.balance)}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">Saldo pendiente</p>
+                      <p className="text-lg font-display font-bold text-foreground">{formatDate(selectedPatient.updated_at)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Última actualización</p>
                     </div>
                   </div>
                 </div>
@@ -319,6 +301,14 @@ const Pacientes = () => {
                     </Button>
                   </div>
                 </div>
+
+                {/* Notes */}
+                {selectedPatient.notes && (
+                  <div className="p-6 border-t border-border">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Notas</h3>
+                    <p className="text-sm text-foreground">{selectedPatient.notes}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
