@@ -47,6 +47,7 @@ const menuItems = [
   { icon: Sparkles, label: "Asistente IA", path: "/asistente-ia", isAI: true },
   { icon: MessageSquare, label: "Mensajes", path: "/mensajes" },
   { icon: Settings, label: "Configuración", path: "/configuracion" },
+  { icon: Shield, label: "Administración", path: "/administracion", adminOnly: true },
 ];
 
 const ROLE_COLORS: Record<AppRole, string> = {

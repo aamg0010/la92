@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search,
   Plus,
@@ -16,6 +17,8 @@ import {
   ChevronRight,
   Loader2,
   UserPlus,
+  ClipboardList,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePatients, type Patient } from "@/hooks/usePatients";
@@ -23,6 +26,8 @@ import { format, parseISO, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { NewPatientDialog } from "@/components/patients/NewPatientDialog";
 import { NewAppointmentDialog } from "@/components/appointments/NewAppointmentDialog";
+import { ClinicalHistoryPanel } from "@/components/patients/ClinicalHistoryPanel";
+import { ClinicalHistoryDialog } from "@/components/patients/ClinicalHistoryDialog";
 
 const getPatientStatus = (patient: Patient): "active" | "inactive" | "new" => {
   const daysSinceCreated = differenceInDays(new Date(), parseISO(patient.created_at));
@@ -259,59 +264,90 @@ const Pacientes = () => {
                   </div>
                 </div>
 
-                {/* Stats */}
-                <div className="p-6 border-b border-border">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-4">Resumen</h3>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="text-center p-4 rounded-xl bg-muted/50">
-                      <p className="text-lg font-display font-bold text-foreground">{formatDate(selectedPatient.created_at)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Fecha de registro</p>
-                    </div>
-                    <div className="text-center p-4 rounded-xl bg-muted/50">
-                      <p className="text-lg font-display font-bold text-foreground">{selectedPatient.health_insurance || "—"}</p>
-                      <p className="text-xs text-muted-foreground mt-1">EPS / Aseguradora</p>
-                    </div>
-                    <div className="text-center p-4 rounded-xl bg-muted/50">
-                      <p className="text-lg font-display font-bold text-foreground">{formatDate(selectedPatient.updated_at)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Última actualización</p>
-                    </div>
+                {/* Tabs for Details and Clinical History */}
+                <Tabs defaultValue="info" className="flex-1 flex flex-col">
+                  <div className="px-6 border-b border-border">
+                    <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+                      <TabsTrigger value="info" className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Información
+                      </TabsTrigger>
+                      <TabsTrigger value="history" className="flex items-center gap-2">
+                        <ClipboardList className="w-4 h-4" />
+                        Historia Clínica
+                      </TabsTrigger>
+                    </TabsList>
                   </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="p-6">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-4">Acciones</h3>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <NewAppointmentDialog
-                      trigger={
-                        <Button variant="outline" className="flex-col h-auto py-4 w-full">
-                          <Calendar className="w-5 h-5 mb-2 text-primary" />
-                          <span className="text-xs">Agendar Cita</span>
+                  
+                  <TabsContent value="info" className="flex-1 overflow-y-auto scrollbar-thin m-0 p-6">
+                    {/* Quick Actions */}
+                    <div className="mb-6">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-4">Acciones</h3>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <NewAppointmentDialog
+                          trigger={
+                            <Button variant="outline" className="flex-col h-auto py-4 w-full">
+                              <Calendar className="w-5 h-5 mb-2 text-primary" />
+                              <span className="text-xs">Agendar Cita</span>
+                            </Button>
+                          }
+                        />
+                        <ClinicalHistoryDialog
+                          patientId={selectedPatient.id}
+                          patientName={`${selectedPatient.first_name} ${selectedPatient.last_name}`}
+                          trigger={
+                            <Button variant="outline" className="flex-col h-auto py-4 w-full">
+                              <FileText className="w-5 h-5 mb-2 text-primary" />
+                              <span className="text-xs">Nuevo Registro</span>
+                            </Button>
+                          }
+                        />
+                        <Button variant="outline" className="flex-col h-auto py-4">
+                          <Phone className="w-5 h-5 mb-2 text-primary" />
+                          <span className="text-xs">Llamar</span>
                         </Button>
-                      }
-                    />
-                    <Button variant="outline" className="flex-col h-auto py-4">
-                      <FileText className="w-5 h-5 mb-2 text-primary" />
-                      <span className="text-xs">Historia Clínica</span>
-                    </Button>
-                    <Button variant="outline" className="flex-col h-auto py-4">
-                      <Phone className="w-5 h-5 mb-2 text-primary" />
-                      <span className="text-xs">Llamar</span>
-                    </Button>
-                    <Button variant="outline" className="flex-col h-auto py-4">
-                      <Mail className="w-5 h-5 mb-2 text-primary" />
-                      <span className="text-xs">Enviar Email</span>
-                    </Button>
-                  </div>
-                </div>
+                        <Button variant="outline" className="flex-col h-auto py-4">
+                          <Mail className="w-5 h-5 mb-2 text-primary" />
+                          <span className="text-xs">Enviar Email</span>
+                        </Button>
+                      </div>
+                    </div>
 
-                {/* Notes */}
-                {selectedPatient.notes && (
-                  <div className="p-6 border-t border-border">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Notas</h3>
-                    <p className="text-sm text-foreground">{selectedPatient.notes}</p>
-                  </div>
-                )}
+                    {/* Stats */}
+                    <div className="mb-6">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-4">Resumen</h3>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="text-center p-4 rounded-xl bg-muted/50">
+                          <p className="text-lg font-display font-bold text-foreground">{formatDate(selectedPatient.created_at)}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Fecha de registro</p>
+                        </div>
+                        <div className="text-center p-4 rounded-xl bg-muted/50">
+                          <p className="text-lg font-display font-bold text-foreground">{selectedPatient.health_insurance || "—"}</p>
+                          <p className="text-xs text-muted-foreground mt-1">EPS / Aseguradora</p>
+                        </div>
+                        <div className="text-center p-4 rounded-xl bg-muted/50">
+                          <p className="text-lg font-display font-bold text-foreground">{formatDate(selectedPatient.updated_at)}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Última actualización</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    {selectedPatient.notes && (
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-2">Notas</h3>
+                        <p className="text-sm text-foreground">{selectedPatient.notes}</p>
+                      </div>
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="history" className="flex-1 overflow-y-auto scrollbar-thin m-0 p-6">
+                    <ClinicalHistoryPanel
+                      patientId={selectedPatient.id}
+                      patientName={`${selectedPatient.first_name} ${selectedPatient.last_name}`}
+                    />
+                  </TabsContent>
+                </Tabs>
               </div>
             </div>
           )}
