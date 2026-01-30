@@ -17,6 +17,7 @@ import Inventario from "./pages/Inventario";
 import Laboratorios from "./pages/Laboratorios";
 import AsistenteIA from "./pages/AsistenteIA";
 import Administracion from "./pages/Administracion";
+import Configuracion from "./pages/Configuracion";
 import { PlaceholderPage } from "./components/layout/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 
@@ -43,7 +44,7 @@ const App = () => (
             <Route path="/cobros" element={<ProtectedRoute><Cobros /></ProtectedRoute>} />
             <Route path="/asistente-ia" element={<ProtectedRoute><AsistenteIA /></ProtectedRoute>} />
             <Route path="/mensajes" element={<ProtectedRoute><PlaceholderPage title="Mensajes" /></ProtectedRoute>} />
-            <Route path="/configuracion" element={<ProtectedRoute><PlaceholderPage title="Configuración" /></ProtectedRoute>} />
+            <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
             <Route path="/administracion" element={<ProtectedRoute requiredRoles={["admin"]}><Administracion /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
