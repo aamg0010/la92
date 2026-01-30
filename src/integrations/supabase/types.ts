@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_settings: {
+        Row: {
+          ai_enabled: boolean | null
+          auto_suggestions: boolean | null
+          created_at: string | null
+          default_model: string | null
+          diagnosis_assistance: boolean | null
+          id: string
+          max_tokens: number | null
+          temperature: number | null
+          treatment_recommendations: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_enabled?: boolean | null
+          auto_suggestions?: boolean | null
+          created_at?: string | null
+          default_model?: string | null
+          diagnosis_assistance?: boolean | null
+          id?: string
+          max_tokens?: number | null
+          temperature?: number | null
+          treatment_recommendations?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_enabled?: boolean | null
+          auto_suggestions?: boolean | null
+          created_at?: string | null
+          default_model?: string | null
+          diagnosis_assistance?: boolean | null
+          id?: string
+          max_tokens?: number | null
+          temperature?: number | null
+          treatment_recommendations?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           appointment_date: string
@@ -116,6 +155,66 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      clinic_settings: {
+        Row: {
+          address: string | null
+          city: string | null
+          clinic_name: string
+          closing_time: string | null
+          created_at: string | null
+          currency: string | null
+          date_format: string | null
+          email: string | null
+          id: string
+          logo_url: string | null
+          opening_time: string | null
+          phone: string | null
+          tax_id: string | null
+          timezone: string | null
+          updated_at: string | null
+          website: string | null
+          working_days: string[] | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          clinic_name?: string
+          closing_time?: string | null
+          created_at?: string | null
+          currency?: string | null
+          date_format?: string | null
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          opening_time?: string | null
+          phone?: string | null
+          tax_id?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          website?: string | null
+          working_days?: string[] | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          clinic_name?: string
+          closing_time?: string | null
+          created_at?: string | null
+          currency?: string | null
+          date_format?: string | null
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          opening_time?: string | null
+          phone?: string | null
+          tax_id?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          website?: string | null
+          working_days?: string[] | null
+        }
+        Relationships: []
       }
       contact_messages: {
         Row: {
@@ -713,6 +812,48 @@ export type Database = {
           },
         ]
       }
+      message_templates: {
+        Row: {
+          channel: string
+          content: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          subject: string | null
+          type: string
+          updated_at: string | null
+          variables: string[] | null
+        }
+        Insert: {
+          channel: string
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          subject?: string | null
+          type: string
+          updated_at?: string | null
+          variables?: string[] | null
+        }
+        Update: {
+          channel?: string
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          subject?: string | null
+          type?: string
+          updated_at?: string | null
+          variables?: string[] | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -982,6 +1123,45 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          compact_mode: boolean | null
+          created_at: string | null
+          email_notifications: boolean | null
+          id: string
+          language: string | null
+          notifications_enabled: boolean | null
+          sound_enabled: boolean | null
+          theme: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          compact_mode?: boolean | null
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          notifications_enabled?: boolean | null
+          sound_enabled?: boolean | null
+          theme?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          compact_mode?: boolean | null
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          notifications_enabled?: boolean | null
+          sound_enabled?: boolean | null
+          theme?: string | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
