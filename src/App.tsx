@@ -18,6 +18,7 @@ import Laboratorios from "./pages/Laboratorios";
 import AsistenteIA from "./pages/AsistenteIA";
 import Administracion from "./pages/Administracion";
 import Configuracion from "./pages/Configuracion";
+import Tratamientos from "./pages/Tratamientos";
 import { PlaceholderPage } from "./components/layout/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 
@@ -36,7 +37,7 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/agenda" element={<ProtectedRoute><Agenda /></ProtectedRoute>} />
             <Route path="/pacientes" element={<ProtectedRoute><Pacientes /></ProtectedRoute>} />
-            <Route path="/tratamientos" element={<ProtectedRoute><PlaceholderPage title="Tratamientos" /></ProtectedRoute>} />
+            <Route path="/tratamientos" element={<ProtectedRoute><Tratamientos /></ProtectedRoute>} />
             <Route path="/inventario" element={<ProtectedRoute><Inventario /></ProtectedRoute>} />
             <Route path="/laboratorios" element={<ProtectedRoute><Laboratorios /></ProtectedRoute>} />
             <Route path="/finanzas" element={<ProtectedRoute><Finanzas /></ProtectedRoute>} />
