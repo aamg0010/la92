@@ -67,6 +67,56 @@ export type Database = {
           },
         ]
       }
+      clinic_documents: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          name: string
+          updated_at: string
+          uploaded_by: string
+          user_id: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          uploaded_by: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          uploaded_by?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_documents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       contact_messages: {
         Row: {
           created_at: string
