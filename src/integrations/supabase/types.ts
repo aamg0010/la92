@@ -1051,6 +1051,7 @@ export type Database = {
           address: string | null
           birth_date: string | null
           city: string | null
+          clinical_history_code: string | null
           created_at: string
           created_by: string | null
           document_number: string
@@ -1071,6 +1072,7 @@ export type Database = {
           address?: string | null
           birth_date?: string | null
           city?: string | null
+          clinical_history_code?: string | null
           created_at?: string
           created_by?: string | null
           document_number: string
@@ -1091,6 +1093,7 @@ export type Database = {
           address?: string | null
           birth_date?: string | null
           city?: string | null
+          clinical_history_code?: string | null
           created_at?: string
           created_by?: string | null
           document_number?: string
@@ -1719,6 +1722,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_clinical_history_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
