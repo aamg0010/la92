@@ -1004,33 +1004,42 @@ export type Database = {
       }
       patient_health_history: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           attachments: Json | null
           created_at: string
           created_by: string | null
           diagnosis: string
           id: string
+          is_active: boolean
           notes: string | null
           patient_id: string
           tooth_number: string | null
           treatment: string | null
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           attachments?: Json | null
           created_at?: string
           created_by?: string | null
           diagnosis: string
           id?: string
+          is_active?: boolean
           notes?: string | null
           patient_id: string
           tooth_number?: string | null
           treatment?: string | null
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           attachments?: Json | null
           created_at?: string
           created_by?: string | null
           diagnosis?: string
           id?: string
+          is_active?: boolean
           notes?: string | null
           patient_id?: string
           tooth_number?: string | null

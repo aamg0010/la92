@@ -13,6 +13,9 @@ export interface ClinicalHistoryEntry {
   attachments: { name: string; url: string; type: string }[];
   created_at: string;
   created_by: string | null;
+  is_active: boolean;
+  archived_at: string | null;
+  archived_by: string | null;
 }
 
 export interface NewClinicalHistoryEntry {
@@ -74,6 +77,46 @@ export function useCreateClinicalHistory() {
       toast({
         title: "Error",
         description: "No se pudo guardar el registro. " + error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useToggleClinicalHistoryStatus() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ entryId, isActive, patientId }: { entryId: string; isActive: boolean; patientId: string }) => {
+      const { data, error } = await supabase
+        .from("patient_health_history")
+        .update({
+          is_active: isActive,
+          archived_at: isActive ? null : new Date().toISOString(),
+          archived_by: isActive ? null : user?.id,
+        })
+        .eq("id", entryId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return { data, patientId };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["clinical-history", result.patientId] });
+      toast({
+        title: result.data.is_active ? "Registro activado" : "Registro archivado",
+        description: result.data.is_active 
+          ? "El registro ha sido activado nuevamente."
+          : "El registro ha sido archivado correctamente.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "No se pudo cambiar el estado del registro. " + error.message,
         variant: "destructive",
       });
     },
