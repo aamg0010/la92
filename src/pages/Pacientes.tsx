@@ -201,9 +201,17 @@ const Pacientes = () => {
                         <h2 className="text-2xl font-display font-bold text-foreground">
                           {selectedPatient.first_name} {selectedPatient.last_name}
                         </h2>
-                        <Badge variant="outline" className={cn("mt-2", statusConfig[getPatientStatus(selectedPatient)].className)}>
-                          {statusConfig[getPatientStatus(selectedPatient)].label}
-                        </Badge>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="outline" className={cn(statusConfig[getPatientStatus(selectedPatient)].className)}>
+                            {statusConfig[getPatientStatus(selectedPatient)].label}
+                          </Badge>
+                          {(selectedPatient as Patient & { clinical_history_code?: string }).clinical_history_code && (
+                            <Badge variant="secondary" className="font-mono text-xs">
+                              <ClipboardList className="w-3 h-3 mr-1" />
+                              HC: {(selectedPatient as Patient & { clinical_history_code?: string }).clinical_history_code}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <Button variant="outline" size="icon">
