@@ -15,91 +15,33 @@ import {
   AlertCircle,
   FileJson,
   Building2,
-  Upload,
   RefreshCw,
   Eye,
   Printer,
-  Filter
+  Filter,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useInvoices, useInvoiceStats } from "@/hooks/useInvoices";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
-interface Invoice {
-  id: string;
-  number: string;
-  patientName: string;
-  nit: string;
-  date: string;
-  amount: number;
-  status: "draft" | "pending" | "sent" | "validated" | "rejected";
-  ripsGenerated: boolean;
-  cufe?: string;
-}
-
-const invoices: Invoice[] = [
-  {
-    id: "1",
-    number: "FEV-001234",
-    patientName: "Carlos Mendoza Pérez",
-    nit: "1234567890",
-    date: "2024-01-29",
-    amount: 350000,
-    status: "validated",
-    ripsGenerated: true,
-    cufe: "a1b2c3d4e5f6..."
-  },
-  {
-    id: "2",
-    number: "FEV-001235",
-    patientName: "Ana Lucía Torres García",
-    nit: "0987654321",
-    date: "2024-01-28",
-    amount: 520000,
-    status: "sent",
-    ripsGenerated: true,
-  },
-  {
-    id: "3",
-    number: "FEV-001236",
-    patientName: "Roberto Jiménez Silva",
-    nit: "1122334455",
-    date: "2024-01-28",
-    amount: 180000,
-    status: "pending",
-    ripsGenerated: false,
-  },
-  {
-    id: "4",
-    number: "FEV-001237",
-    patientName: "María Fernanda Ruiz",
-    nit: "5544332211",
-    date: "2024-01-27",
-    amount: 750000,
-    status: "rejected",
-    ripsGenerated: true,
-  },
-  {
-    id: "5",
-    number: "FEV-001238",
-    patientName: "José García López",
-    nit: "6677889900",
-    date: "2024-01-29",
-    amount: 420000,
-    status: "draft",
-    ripsGenerated: false,
-  },
-];
-
-const statusConfig = {
+const statusConfig: Record<string, { label: string; className: string; icon: React.ElementType }> = {
   draft: { label: "Borrador", className: "bg-muted text-muted-foreground", icon: FileText },
   pending: { label: "Pendiente", className: "bg-warning/10 text-warning border border-warning/20", icon: Clock },
   sent: { label: "Enviada DIAN", className: "bg-primary/10 text-primary border border-primary/20", icon: Send },
   validated: { label: "Validada", className: "bg-success/10 text-success border border-success/20", icon: CheckCircle2 },
+  paid: { label: "Pagada", className: "bg-success/10 text-success border border-success/20", icon: CheckCircle2 },
   rejected: { label: "Rechazada", className: "bg-destructive/10 text-destructive border border-destructive/20", icon: AlertCircle },
+  cancelled: { label: "Anulada", className: "bg-destructive/10 text-destructive border border-destructive/20", icon: AlertCircle },
 };
 
 const Facturacion = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("invoices");
+
+  const { data: invoices = [], isLoading } = useInvoices();
+  const { data: stats } = useInvoiceStats();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CO', {
@@ -110,8 +52,9 @@ const Facturacion = () => {
   };
 
   const filteredInvoices = invoices.filter(inv => 
-    inv.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    inv.number.toLowerCase().includes(searchQuery.toLowerCase())
+    inv.patient?.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    inv.patient?.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -153,15 +96,21 @@ const Facturacion = () => {
             </div>
             <div className="flex items-center gap-6 lg:ml-auto">
               <div className="text-center">
-                <p className="text-2xl font-display font-bold text-success">98%</p>
+                <p className="text-2xl font-display font-bold text-success">
+                  {stats?.validationRate ?? 0}%
+                </p>
                 <p className="text-xs text-muted-foreground">Tasa validación</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-display font-bold text-primary">1,234</p>
+                <p className="text-2xl font-display font-bold text-primary">
+                  {stats?.totalCount ?? 0}
+                </p>
                 <p className="text-xs text-muted-foreground">Facturas este mes</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-display font-bold text-foreground">48</p>
+                <p className="text-2xl font-display font-bold text-foreground">
+                  {stats?.validatedCount ?? 0}
+                </p>
                 <p className="text-xs text-muted-foreground">RIPS generados</p>
               </div>
             </div>
@@ -204,87 +153,106 @@ const Facturacion = () => {
 
           <TabsContent value="invoices" className="mt-6">
             <div className="card-elevated overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Número</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Paciente</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">NIT/CC</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Fecha</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Valor</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">RIPS</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Estado</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredInvoices.map((invoice) => {
-                      const StatusIcon = statusConfig[invoice.status].icon;
-                      return (
-                        <tr key={invoice.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                          <td className="py-4 px-4">
-                            <p className="font-mono font-medium text-foreground">{invoice.number}</p>
-                            {invoice.cufe && (
-                              <p className="text-xs text-muted-foreground font-mono">CUFE: {invoice.cufe}</p>
-                            )}
-                          </td>
-                          <td className="py-4 px-4">
-                            <p className="font-medium text-foreground">{invoice.patientName}</p>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className="font-mono text-muted-foreground">{invoice.nit}</span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className="text-muted-foreground">
-                              {new Date(invoice.date).toLocaleDateString('es-CO')}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-right">
-                            <span className="font-semibold text-foreground">{formatCurrency(invoice.amount)}</span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            {invoice.ripsGenerated ? (
-                              <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                                <CheckCircle2 className="w-3 h-3 mr-1" />
-                                Generado
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-muted text-muted-foreground">
-                                Pendiente
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <Badge variant="outline" className={cn("gap-1", statusConfig[invoice.status].className)}>
-                              <StatusIcon className="w-3 h-3" />
-                              {statusConfig[invoice.status].label}
-                            </Badge>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center justify-center gap-1">
-                              <Button variant="ghost" size="icon" className="w-8 h-8">
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="w-8 h-8">
-                                <Download className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="w-8 h-8">
-                                <Printer className="w-4 h-4" />
-                              </Button>
-                              {invoice.status === "draft" && (
-                                <Button variant="ghost" size="icon" className="w-8 h-8 text-primary">
-                                  <Send className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Número</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Paciente</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">NIT/CC</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Fecha</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Valor</th>
+                        <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">RIPS</th>
+                        <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Estado</th>
+                        <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredInvoices.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="text-center py-12 text-muted-foreground">
+                            No hay facturas registradas
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      ) : (
+                        filteredInvoices.map((invoice) => {
+                          const status = statusConfig[invoice.status] || statusConfig.draft;
+                          const StatusIcon = status.icon;
+                          return (
+                            <tr key={invoice.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                              <td className="py-4 px-4">
+                                <p className="font-mono font-medium text-foreground">{invoice.invoice_number}</p>
+                                {invoice.cufe && (
+                                  <p className="text-xs text-muted-foreground font-mono">CUFE: {invoice.cufe.slice(0, 12)}...</p>
+                                )}
+                              </td>
+                              <td className="py-4 px-4">
+                                <p className="font-medium text-foreground">
+                                  {invoice.patient?.first_name} {invoice.patient?.last_name}
+                                </p>
+                              </td>
+                              <td className="py-4 px-4">
+                                <span className="font-mono text-muted-foreground">
+                                  {invoice.patient?.document_number || "-"}
+                                </span>
+                              </td>
+                              <td className="py-4 px-4">
+                                <span className="text-muted-foreground">
+                                  {format(new Date(invoice.issue_date), "dd/MM/yyyy", { locale: es })}
+                                </span>
+                              </td>
+                              <td className="py-4 px-4 text-right">
+                                <span className="font-semibold text-foreground">{formatCurrency(Number(invoice.total))}</span>
+                              </td>
+                              <td className="py-4 px-4 text-center">
+                                {invoice.rips_data ? (
+                                  <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    Generado
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-muted text-muted-foreground">
+                                    Pendiente
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="py-4 px-4 text-center">
+                                <Badge variant="outline" className={cn("gap-1", status.className)}>
+                                  <StatusIcon className="w-3 h-3" />
+                                  {status.label}
+                                </Badge>
+                              </td>
+                              <td className="py-4 px-4">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="icon" className="w-8 h-8">
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="w-8 h-8">
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="w-8 h-8">
+                                    <Printer className="w-4 h-4" />
+                                  </Button>
+                                  {invoice.status === "draft" && (
+                                    <Button variant="ghost" size="icon" className="w-8 h-8 text-primary">
+                                      <Send className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </TabsContent>
 
@@ -303,15 +271,13 @@ const Facturacion = () => {
                   <div className="p-4 rounded-lg bg-muted/50 border border-border">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium text-foreground">Período a reportar</span>
-                      <span className="text-sm text-muted-foreground">Enero 2024</span>
+                      <span className="text-sm text-muted-foreground">
+                        {format(new Date(), "MMMM yyyy", { locale: es })}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-foreground">Atenciones</span>
-                      <span className="text-sm text-foreground">127 registros</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-foreground">Procedimientos</span>
-                      <span className="text-sm text-foreground">185 registros</span>
+                      <span className="font-medium text-foreground">Facturas</span>
+                      <span className="text-sm text-foreground">{stats?.totalCount ?? 0} registros</span>
                     </div>
                   </div>
 
@@ -319,10 +285,6 @@ const Facturacion = () => {
                     <Button className="flex-1 bg-primary hover:bg-primary/90">
                       <FileJson className="w-4 h-4 mr-2" />
                       Generar RIPS
-                    </Button>
-                    <Button variant="outline">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Subir a MinSalud
                     </Button>
                   </div>
                 </div>
@@ -333,30 +295,9 @@ const Facturacion = () => {
                 <h3 className="font-display text-xl font-semibold text-foreground mb-4">
                   Archivos RIPS Recientes
                 </h3>
-                <div className="space-y-3">
-                  {[
-                    { period: "Enero 2024", date: "2024-01-30", status: "Enviado", records: 312 },
-                    { period: "Diciembre 2023", date: "2024-01-05", status: "Aceptado", records: 298 },
-                    { period: "Noviembre 2023", date: "2023-12-05", status: "Aceptado", records: 275 },
-                  ].map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <FileJson className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">{file.period}</p>
-                          <p className="text-xs text-muted-foreground">{file.records} registros · {file.date}</p>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className={cn(
-                        file.status === "Aceptado" ? "bg-success/10 text-success" : "bg-primary/10 text-primary"
-                      )}>
-                        {file.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No hay archivos RIPS generados aún
+                </p>
               </div>
             </div>
           </TabsContent>
@@ -374,43 +315,28 @@ const Facturacion = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="p-4 rounded-xl bg-success/10 border border-success/20 text-center">
-                  <CheckCircle2 className="w-8 h-8 mx-auto text-success mb-2" />
-                  <p className="font-semibold text-success">Conectado</p>
+                <div className="p-4 rounded-xl bg-muted/50 border border-border text-center">
+                  <Clock className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="font-semibold text-muted-foreground">Pendiente</p>
                   <p className="text-sm text-muted-foreground">API DIAN</p>
                 </div>
-                <div className="p-4 rounded-xl bg-success/10 border border-success/20 text-center">
-                  <CheckCircle2 className="w-8 h-8 mx-auto text-success mb-2" />
-                  <p className="font-semibold text-success">Habilitado</p>
+                <div className="p-4 rounded-xl bg-muted/50 border border-border text-center">
+                  <Clock className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="font-semibold text-muted-foreground">Pendiente</p>
                   <p className="text-sm text-muted-foreground">Facturación electrónica</p>
                 </div>
-                <div className="p-4 rounded-xl bg-success/10 border border-success/20 text-center">
-                  <CheckCircle2 className="w-8 h-8 mx-auto text-success mb-2" />
-                  <p className="font-semibold text-success">Vigente</p>
+                <div className="p-4 rounded-xl bg-muted/50 border border-border text-center">
+                  <Clock className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="font-semibold text-muted-foreground">Pendiente</p>
                   <p className="text-sm text-muted-foreground">Certificado digital</p>
                 </div>
               </div>
 
               <div className="p-4 rounded-lg bg-muted/50 border border-border">
                 <h4 className="font-medium text-foreground mb-3">Información del contribuyente</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Razón Social</p>
-                    <p className="font-medium text-foreground">Consultorio Odontológico La 92 S.A.S</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">NIT</p>
-                    <p className="font-medium text-foreground">901.234.567-8</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Resolución de facturación</p>
-                    <p className="font-medium text-foreground">18764000001234</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Rango autorizado</p>
-                    <p className="font-medium text-foreground">FEV-001 a FEV-999999</p>
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  Configure los datos de la clínica en Configuración → Clínica para habilitar la facturación electrónica.
+                </p>
               </div>
             </div>
           </TabsContent>
