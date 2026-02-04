@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -19,6 +20,9 @@ export function MainLayout({ children }: MainLayoutProps) {
       <main className="transition-all duration-300 ml-20 lg:ml-64 min-h-screen pt-16">
         {children}
       </main>
+      
+      {/* Chat Widget */}
+      <ChatWidget />
     </div>
   );
 }
