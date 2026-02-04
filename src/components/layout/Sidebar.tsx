@@ -4,7 +4,6 @@ import {
   Calendar, 
   Users, 
   LayoutDashboard, 
-  MessageSquare, 
   Settings, 
   FileText,
   TrendingUp,
@@ -45,7 +44,6 @@ const menuItems = [
   { icon: Receipt, label: "Facturación", path: "/facturacion", badge: "DIAN" },
   { icon: Wallet, label: "Cobros", path: "/cobros" },
   { icon: Sparkles, label: "Asistente IA", path: "/asistente-ia", isAI: true },
-  { icon: MessageSquare, label: "Mensajes", path: "/mensajes" },
   { icon: Settings, label: "Configuración", path: "/configuracion" },
   { icon: Shield, label: "Administración", path: "/administracion", adminOnly: true },
 ];
