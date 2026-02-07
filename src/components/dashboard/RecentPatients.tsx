@@ -1,98 +1,89 @@
 import { ChevronRight, Phone, Mail } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-
-interface Patient {
-  id: string;
-  name: string;
-  avatar?: string;
-  lastVisit: string;
-  nextAppointment?: string;
-  phone: string;
-}
-
-const patients: Patient[] = [
-  {
-    id: "1",
-    name: "Carmen Rodríguez",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=faces",
-    lastVisit: "Hace 2 días",
-    nextAppointment: "15 Feb, 10:00",
-    phone: "+57 300 123 4567",
-  },
-  {
-    id: "2",
-    name: "Miguel Ángel Sánchez",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces",
-    lastVisit: "Hace 5 días",
-    phone: "+57 301 234 5678",
-  },
-  {
-    id: "3",
-    name: "Laura Martínez",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=faces",
-    lastVisit: "Hace 1 semana",
-    nextAppointment: "18 Feb, 14:30",
-    phone: "+57 302 345 6789",
-  },
-  {
-    id: "4",
-    name: "Andrés Felipe Castro",
-    lastVisit: "Hace 2 semanas",
-    phone: "+57 303 456 7890",
-  },
-];
+import { usePatients } from "@/hooks/usePatients";
+import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
+import { useMemo } from "react";
 
 export function RecentPatients() {
+  const { data: patients, isLoading } = usePatients();
+  const navigate = useNavigate();
+
+  const queryKeys = useMemo(() => [["patients"]], []);
+  useRealtimeSubscription("patients", queryKeys);
+
+  const recentPatients = patients?.slice(0, 5) || [];
+
   return (
     <div className="card-elevated p-6 h-full">
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display text-xl font-semibold text-foreground">
           Pacientes Recientes
         </h3>
-        <Button variant="ghost" size="sm" className="text-sm text-primary">
+        <Button variant="ghost" size="sm" className="text-sm text-primary" onClick={() => navigate("/pacientes")}>
           Ver todos
           <ChevronRight className="w-4 h-4 ml-1" />
         </Button>
       </div>
 
       <div className="space-y-4">
-        {patients.map((patient) => (
-          <div
-            key={patient.id}
-            className="flex items-center gap-4 p-3 -mx-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group"
-          >
-            <Avatar className="w-12 h-12">
-              <AvatarImage src={patient.avatar} alt={patient.name} />
-              <AvatarFallback className="bg-secondary text-secondary-foreground font-medium">
-                {patient.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-              </AvatarFallback>
-            </Avatar>
-
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-foreground truncate">
-                {patient.name}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Última visita: {patient.lastVisit}
-              </p>
-              {patient.nextAppointment && (
-                <p className="text-sm text-primary font-medium">
-                  Próxima cita: {patient.nextAppointment}
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="ghost" size="icon" className="w-8 h-8">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-              </Button>
-              <Button variant="ghost" size="icon" className="w-8 h-8">
-                <Mail className="w-4 h-4 text-muted-foreground" />
-              </Button>
-            </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ))}
+        ) : !recentPatients.length ? (
+          <p className="text-center text-muted-foreground py-8">No hay pacientes registrados</p>
+        ) : (
+          recentPatients.map((patient) => {
+            const name = `${patient.first_name} ${patient.last_name}`;
+            const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2);
+            const lastVisit = formatDistanceToNow(new Date(patient.created_at), { 
+              addSuffix: true, 
+              locale: es 
+            });
+
+            return (
+              <div
+                key={patient.id}
+                className="flex items-center gap-4 p-3 -mx-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group"
+                onClick={() => navigate("/pacientes")}
+              >
+                <Avatar className="w-12 h-12">
+                  <AvatarFallback className="bg-secondary text-secondary-foreground font-medium">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground truncate">{name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Registrado {lastVisit}
+                  </p>
+                  {patient.phone && (
+                    <p className="text-sm text-muted-foreground">{patient.phone}</p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {patient.phone && (
+                    <Button variant="ghost" size="icon" className="w-8 h-8" onClick={(e) => { e.stopPropagation(); window.open(`tel:${patient.phone}`); }}>
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  )}
+                  {patient.email && (
+                    <Button variant="ghost" size="icon" className="w-8 h-8" onClick={(e) => { e.stopPropagation(); window.open(`mailto:${patient.email}`); }}>
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
