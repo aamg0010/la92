@@ -197,21 +197,25 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative py-20 lg:py-32 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />
+       {/* Hero Section */}
+      <section className="relative py-24 lg:py-36 overflow-hidden bg-sidebar-background text-sidebar-foreground">
+        <div className="absolute inset-0 bg-gradient-to-br from-sidebar-background via-sidebar-accent to-sidebar-background opacity-80" />
         <div className="container mx-auto px-4 relative">
           <div className="max-w-3xl mx-auto text-center">
-            <Badge className="mb-6 bg-primary/10 text-primary border-primary/20 hover:bg-primary/15">
-             <Star className="w-3 h-3 mr-1" />
+            <img 
+              src={logoImage} 
+              alt="Consultorio Odontológico La 92" 
+              className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-8 rounded-2xl object-contain"
+            />
+            <Badge className="mb-6 bg-primary/20 text-primary border-primary/30 hover:bg-primary/25">
+              <Star className="w-3 h-3 mr-1" />
               Más que un consultorio, tu aliado en salud bucal
             </Badge>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
-              🦷 Odontología Integral & Estética ✨
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+              Odontología Integral & Estética ✨
             </h1>
-            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Más que un consultorio, tu aliado en salud bucal. Agenda tu cita y transforma tu sonrisa 
-              con nuestro equipo especializado en Medellín.
+            <p className="text-lg md:text-xl text-sidebar-foreground/80 mb-8 max-w-2xl mx-auto">
+              Agenda tu cita y transforma tu sonrisa con nuestro equipo especializado en Medellín.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a href="#contacto">
@@ -221,7 +225,7 @@ export default function LandingPage() {
                 </Button>
               </a>
               <a href="https://wa.me/573206433524" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto border-sidebar-foreground/30 text-white hover:bg-sidebar-accent hover:text-white">
                   <MessageCircle className="w-4 h-4" />
                   WhatsApp
                 </Button>
