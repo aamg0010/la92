@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/Logo";
+import logoImage from "@/assets/logo-la92.png";
 
 const services = [
   {
@@ -183,15 +184,15 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 relative">
           <div className="max-w-3xl mx-auto text-center">
             <Badge className="mb-6 bg-primary/10 text-primary border-primary/20 hover:bg-primary/15">
-              <Star className="w-3 h-3 mr-1" />
-              +15 años cuidando sonrisas en Medellín
+             <Star className="w-3 h-3 mr-1" />
+              Más que un consultorio, tu aliado en salud bucal
             </Badge>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
-              Tu sonrisa merece lo mejor
+              🦷 Odontología Integral & Estética ✨
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Odontología integral con tecnología de punta. Diseño de sonrisa, implantes, ortodoncia y más. 
-              Agenda tu cita hoy y transforma tu sonrisa.
+              Más que un consultorio, tu aliado en salud bucal. Agenda tu cita y transforma tu sonrisa 
+              con nuestro equipo especializado en Medellín.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a href="#contacto">
@@ -289,7 +290,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Ubicación</h3>
-                    <p className="text-muted-foreground">Calle 92 No. 51-00, Aranjuez<br />Medellín, Colombia</p>
+                    <p className="text-muted-foreground">Carrera 51 # 92-00, Aranjuez<br />Medellín, Antioquia 050004</p>
                   </div>
                 </div>
 
@@ -331,7 +332,7 @@ export default function LandingPage() {
               </div>
 
               <div className="flex gap-4 mt-8">
-                <a href="https://instagram.com/consultorio_.odontologico_" target="_blank" rel="noopener noreferrer" 
+                <a href="https://instagram.com/consultoriola92" target="_blank" rel="noopener noreferrer" 
                    className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors">
                   <Instagram className="w-5 h-5 text-primary" />
                 </a>
@@ -439,34 +440,23 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-sidebar-background text-sidebar-foreground py-12">
+       <footer className="bg-sidebar-background text-sidebar-foreground py-12">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
-                  <path
-                    d="M25 35C25 25 35 15 50 15C65 15 75 25 75 35C75 45 72 50 70 58C68 66 65 78 60 85C57 90 53 90 50 90C47 90 43 90 40 85C35 78 32 66 30 58C28 50 25 45 25 35Z"
-                    stroke="white"
-                    strokeWidth="4"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
+              <img src={logoImage} alt="La 92" className="w-10 h-10 rounded-xl object-contain" />
               <div>
                 <h3 className="font-semibold">Consultorio Odontológico La 92</h3>
-                <p className="text-sm text-sidebar-foreground/70">Tu sonrisa, nuestra pasión</p>
+                <p className="text-sm text-sidebar-foreground/70">Más que un consultorio, tu aliado en salud bucal</p>
               </div>
             </div>
             <div className="flex flex-col md:flex-row items-center gap-4 text-sm text-sidebar-foreground/70">
-              <span>Calle 92 No. 51-00, Aranjuez - Medellín</span>
+              <span>Carrera 51 # 92-00, Aranjuez - Medellín</span>
               <span className="hidden md:inline">•</span>
               <span>Tel: 604 592 78 28</span>
               <span className="hidden md:inline">•</span>
-              <a href="https://instagram.com/consultorio_.odontologico_" target="_blank" rel="noopener noreferrer" className="hover:text-sidebar-foreground transition-colors">
-                @consultorio_.odontologico_
+                <a href="https://instagram.com/consultoriola92" target="_blank" rel="noopener noreferrer" className="hover:text-sidebar-foreground transition-colors">
+                @consultoriola92
               </a>
             </div>
           </div>
