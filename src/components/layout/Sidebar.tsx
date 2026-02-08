@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import logoImage from "@/assets/logo-la92.png";
 import { 
   Calendar, 
   Users, 
@@ -92,41 +93,27 @@ export function Sidebar() {
           "flex items-center gap-3 overflow-hidden transition-all duration-300",
           isCollapsed && "opacity-0 w-0"
         )}>
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
-            <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
-              <path
-                d="M25 35C25 25 35 15 50 15C65 15 75 25 75 35C75 45 72 50 70 58C68 66 65 78 60 85C57 90 53 90 50 90C47 90 43 90 40 85C35 78 32 66 30 58C28 50 25 45 25 35Z"
-                stroke="white"
-                strokeWidth="4"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <img 
+            src={logoImage} 
+            alt="La 92" 
+            className="w-12 h-12 rounded-xl object-contain flex-shrink-0"
+          />
           <div className="flex flex-col min-w-0">
             <span className="font-display text-lg font-semibold text-sidebar-primary-foreground truncate">
               La 92
             </span>
             <span className="text-xs text-sidebar-foreground/70 truncate">
-              Consultorio Odontológico
+              Odontología Integral
             </span>
           </div>
         </div>
         
         {isCollapsed && (
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center mx-auto">
-            <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
-              <path
-                d="M25 35C25 25 35 15 50 15C65 15 75 25 75 35C75 45 72 50 70 58C68 66 65 78 60 85C57 90 53 90 50 90C47 90 43 90 40 85C35 78 32 66 30 58C28 50 25 45 25 35Z"
-                stroke="white"
-                strokeWidth="4"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <img 
+            src={logoImage} 
+            alt="La 92" 
+            className="w-10 h-10 rounded-xl object-contain mx-auto"
+          />
         )}
       </div>
 
