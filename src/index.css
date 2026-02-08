@@ -11,21 +11,21 @@
 
 @layer base {
   :root {
-    /* Core Brand Colors - Teal/Aqua Medical Theme */
+    /* Core Brand Colors - Corporate Charcoal & Teal */
     --background: 180 20% 99%;
-    --foreground: 200 25% 15%;
+    --foreground: 200 15% 25%;
 
     /* Cards & Surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 200 25% 15%;
+    --card-foreground: 200 15% 25%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 25% 15%;
+    --popover-foreground: 200 15% 25%;
 
-    /* Primary - Medical Teal */
-    --primary: 174 62% 42%;
+    /* Primary - Corporate Teal (from business card) */
+    --primary: 174 60% 45%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 174 62% 35%;
+    --primary-hover: 174 60% 38%;
 
     /* Secondary - Soft Sage */
     --secondary: 168 25% 94%;
@@ -59,15 +59,15 @@
 
     --radius: 0.75rem;
 
-    /* Sidebar - Premium Dark */
-    --sidebar-background: 200 25% 12%;
-    --sidebar-foreground: 180 15% 85%;
-    --sidebar-primary: 174 62% 50%;
+    /* Sidebar - Corporate Dark Charcoal (from business card) */
+    --sidebar-background: 200 10% 22%;
+    --sidebar-foreground: 180 15% 88%;
+    --sidebar-primary: 174 60% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 200 25% 18%;
+    --sidebar-accent: 200 10% 28%;
     --sidebar-accent-foreground: 180 15% 95%;
-    --sidebar-border: 200 20% 20%;
-    --sidebar-ring: 174 62% 50%;
+    --sidebar-border: 200 10% 30%;
+    --sidebar-ring: 174 60% 50%;
 
     /* Custom Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(174, 62%, 42%) 0%, hsl(180, 55%, 48%) 100%);
