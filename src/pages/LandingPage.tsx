@@ -29,41 +29,60 @@ import logoImage from "@/assets/logo-la92.png";
 
 const services = [
   {
-    title: "Odontología General",
-    description: "Limpieza dental, empastes, tratamiento de caries y revisiones preventivas.",
-    icon: Heart,
-    price: "Desde $80.000"
+    title: "Diseño de Sonrisa",
+    description: "Transformación integral de tu sonrisa con carillas y técnicas de última generación.",
+    icon: Sparkles,
+  },
+  {
+    title: "Microdiseño",
+    description: "Ajustes estéticos precisos para perfeccionar los detalles de tu sonrisa.",
+    icon: Star,
+  },
+  {
+    title: "Blanqueamiento",
+    description: "Aclara el tono de tus dientes de forma segura y profesional.",
+    icon: Award,
   },
   {
     title: "Ortodoncia",
-    description: "Brackets metálicos, cerámicos e invisibles para una sonrisa perfecta.",
+    description: "Brackets y alineadores para corregir la posición de tus dientes.",
     icon: Sparkles,
-    price: "Desde $3.500.000"
-  },
-  {
-    title: "Implantes Dentales",
-    description: "Implantes de titanio con tecnología CAD/CAM de última generación.",
-    icon: Shield,
-    price: "Desde $2.800.000"
-  },
-  {
-    title: "Diseño de Sonrisa",
-    description: "Carillas en porcelana, blanqueamiento y estética dental integral.",
-    icon: Award,
-    price: "Desde $4.500.000"
   },
   {
     title: "Endodoncia",
-    description: "Tratamiento de conductos con tecnología de rotación mecánica.",
+    description: "Tratamiento de conductos para salvar dientes dañados o infectados.",
     icon: Heart,
-    price: "Desde $350.000"
+  },
+  {
+    title: "Periodoncia",
+    description: "Cuidado especializado de encías y tejidos de soporte dental.",
+    icon: Shield,
+  },
+  {
+    title: "Cirugía Oral",
+    description: "Extracciones, implantes y procedimientos quirúrgicos bucales.",
+    icon: Shield,
   },
   {
     title: "Prótesis Dentales",
-    description: "Coronas, puentes y prótesis removibles de alta calidad.",
+    description: "Prótesis fijas y removibles para restaurar tu función y estética.",
     icon: Star,
-    price: "Desde $450.000"
-  }
+  },
+  {
+    title: "Coronas",
+    description: "Coronas en porcelana y zirconio para proteger y embellecer tus dientes.",
+    icon: Award,
+  },
+  {
+    title: "Aparatología",
+    description: "Dispositivos ortopédicos y funcionales para niños y adultos.",
+    icon: Sparkles,
+  },
+  {
+    title: "Limpieza Dental",
+    description: "Profilaxis profesional para mantener tu salud bucal al día.",
+    icon: Heart,
+  },
 ];
 
 const team = [
@@ -232,7 +251,11 @@ export default function LandingPage() {
                   <CardDescription>{service.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-primary font-semibold">{service.price}</p>
+                  <a href="#contacto">
+                    <Button variant="link" className="px-0 gap-1">
+                      Agendar cita <ChevronRight className="w-3 h-3" />
+                    </Button>
+                  </a>
                 </CardContent>
               </Card>
             ))}
