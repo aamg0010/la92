@@ -24,7 +24,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
-import { Logo } from "@/components/Logo";
+
 import logoImage from "@/assets/logo-la92.png";
 
 const services = [
@@ -169,21 +169,25 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-50 bg-sidebar-background/95 backdrop-blur-md border-b border-sidebar-border">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Logo size="md" />
+            <img src={logoImage} alt="La 92" className="w-12 h-12 rounded-xl object-contain" />
+            <div className="hidden sm:flex flex-col">
+              <span className="font-semibold text-white text-lg leading-tight">La 92</span>
+              <span className="text-xs text-sidebar-foreground/70">Odontología Integral & Estética</span>
+            </div>
           </div>
           <nav className="hidden md:flex items-center gap-6">
-            <a href="#servicios" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Servicios</a>
-            <a href="#equipo" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Equipo</a>
-            <a href="#contacto" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contacto</a>
+            <a href="#servicios" className="text-sm text-sidebar-foreground/70 hover:text-white transition-colors">Servicios</a>
+            <a href="#equipo" className="text-sm text-sidebar-foreground/70 hover:text-white transition-colors">Equipo</a>
+            <a href="#contacto" className="text-sm text-sidebar-foreground/70 hover:text-white transition-colors">Contacto</a>
           </nav>
           <div className="flex items-center gap-3">
             <Link to="/agenda">
-              <Button variant="outline" size="sm" className="hidden sm:flex">
+              <Button variant="outline" size="sm" className="hidden sm:flex border-sidebar-foreground/30 text-white hover:bg-sidebar-accent hover:text-white">
                 Portal Clínico
               </Button>
             </Link>
@@ -205,7 +209,7 @@ export default function LandingPage() {
             <img 
               src={logoImage} 
               alt="Consultorio Odontológico La 92" 
-              className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-8 rounded-2xl object-contain"
+              className="w-40 h-40 md:w-52 md:h-52 mx-auto mb-8 rounded-2xl object-contain"
             />
             <Badge className="mb-6 bg-primary/20 text-primary border-primary/30 hover:bg-primary/25">
               <Star className="w-3 h-3 mr-1" />
@@ -236,23 +240,23 @@ export default function LandingPage() {
       </section>
 
       {/* Services Section */}
-      <section id="servicios" className="py-20 bg-muted/30">
+      <section id="servicios" className="py-20 bg-sidebar-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Nuestros Servicios</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Nuestros Servicios</h2>
+            <p className="text-sidebar-foreground/70 max-w-2xl mx-auto">
               Ofrecemos una amplia gama de tratamientos odontológicos con los más altos estándares de calidad.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {services.map((service, index) => (
-              <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+              <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-sidebar-accent border-sidebar-border">
                 <CardHeader>
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4 group-hover:bg-primary/30 transition-colors">
                     <service.icon className="w-6 h-6 text-primary" />
                   </div>
-                  <CardTitle className="text-xl">{service.title}</CardTitle>
-                  <CardDescription>{service.description}</CardDescription>
+                  <CardTitle className="text-xl text-white">{service.title}</CardTitle>
+                  <CardDescription className="text-sidebar-foreground/70">{service.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <a href="#contacto">
@@ -268,7 +272,7 @@ export default function LandingPage() {
       </section>
 
       {/* Team Section */}
-      <section id="equipo" className="py-20">
+      <section id="equipo" className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Nuestro Equipo</h2>
@@ -278,7 +282,7 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {team.map((member, index) => (
-              <Card key={index} className="text-center overflow-hidden group">
+              <Card key={index} className="text-center overflow-hidden group border-primary/20">
                 <div className="aspect-square overflow-hidden">
                   <img 
                     src={member.image} 
@@ -289,7 +293,7 @@ export default function LandingPage() {
                 <CardHeader>
                   <CardTitle className="text-lg">{member.name}</CardTitle>
                   <CardDescription>{member.specialty}</CardDescription>
-                  <Badge variant="secondary" className="w-fit mx-auto mt-2">
+                  <Badge className="w-fit mx-auto mt-2 bg-primary/10 text-primary border-primary/20">
                     {member.experience}
                   </Badge>
                 </CardHeader>
@@ -300,46 +304,46 @@ export default function LandingPage() {
       </section>
 
       {/* Contact Section */}
-      <section id="contacto" className="py-20 bg-muted/30">
+      <section id="contacto" className="py-20 bg-sidebar-background">
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
             {/* Contact Info */}
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6">Contáctanos</h2>
-              <p className="text-muted-foreground mb-8">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Contáctanos</h2>
+              <p className="text-sidebar-foreground/70 mb-8">
                 Estamos aquí para ayudarte. Agenda tu cita o envíanos tus preguntas.
               </p>
               
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
                     <MapPin className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">Ubicación</h3>
-                    <p className="text-muted-foreground">Carrera 51 # 92-00, Aranjuez<br />Medellín, Antioquia 050004</p>
+                    <h3 className="font-semibold text-white">Ubicación</h3>
+                    <p className="text-sidebar-foreground/70">Carrera 51 # 92-00, Aranjuez<br />Medellín, Antioquia 050004</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
                     <Phone className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">Teléfono</h3>
-                    <p className="text-muted-foreground">
+                    <h3 className="font-semibold text-white">Teléfono</h3>
+                    <p className="text-sidebar-foreground/70">
                       <a href="tel:+576045927828" className="hover:text-primary transition-colors">604 592 78 28</a>
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
                     <MessageCircle className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">WhatsApp</h3>
-                    <p className="text-muted-foreground">
+                    <h3 className="font-semibold text-white">WhatsApp</h3>
+                    <p className="text-sidebar-foreground/70">
                       <a href="https://wa.me/573206433524" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
                         320 643 35 24
                       </a>
@@ -348,33 +352,33 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
                     <Clock className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">Horario</h3>
-                    <p className="text-muted-foreground">Lunes a Viernes: 8:00 AM - 6:00 PM<br />Sábados: 8:00 AM - 2:00 PM</p>
+                    <h3 className="font-semibold text-white">Horario</h3>
+                    <p className="text-sidebar-foreground/70">Lunes a Viernes: 8:00 AM - 6:00 PM<br />Sábados: 8:00 AM - 2:00 PM</p>
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-4 mt-8">
                 <a href="https://instagram.com/consultoriola92" target="_blank" rel="noopener noreferrer" 
-                   className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors">
+                   className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center hover:bg-primary/30 transition-colors">
                   <Instagram className="w-5 h-5 text-primary" />
                 </a>
                 <a href="https://wa.me/573206433524" target="_blank" rel="noopener noreferrer"
-                   className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors">
+                   className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center hover:bg-primary/30 transition-colors">
                   <MessageCircle className="w-5 h-5 text-primary" />
                 </a>
               </div>
             </div>
 
             {/* Contact Form */}
-            <Card>
+            <Card className="bg-sidebar-accent border-sidebar-border">
               <CardHeader>
-                <CardTitle>Envíanos un mensaje</CardTitle>
-                <CardDescription>Responderemos a la brevedad posible.</CardDescription>
+                <CardTitle className="text-white">Envíanos un mensaje</CardTitle>
+                <CardDescription className="text-sidebar-foreground/70">Responderemos a la brevedad posible.</CardDescription>
               </CardHeader>
               <CardContent>
                 {submitted ? (
