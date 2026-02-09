@@ -384,8 +384,8 @@ export default function LandingPage() {
                 {submitted ? (
                   <div className="text-center py-8">
                     <CheckCircle2 className="w-16 h-16 text-success mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-foreground mb-2">¡Mensaje enviado!</h3>
-                    <p className="text-muted-foreground mb-4">
+                    <h3 className="text-xl font-semibold text-white mb-2">¡Mensaje enviado!</h3>
+                    <p className="text-sidebar-foreground/70 mb-4">
                       Gracias por contactarnos. Te responderemos pronto.
                     </p>
                     <Button onClick={() => setSubmitted(false)} variant="outline">
