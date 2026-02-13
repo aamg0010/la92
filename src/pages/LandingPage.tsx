@@ -171,23 +171,23 @@ export default function LandingPage() {
   return (
      <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-sidebar-background/95 backdrop-blur-md border-b border-sidebar-border">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={logoImage} alt="La 92" className="w-12 h-12 rounded-xl object-contain" />
             <div className="hidden sm:flex flex-col">
-              <span className="font-semibold text-white text-lg leading-tight">La 92</span>
-              <span className="text-xs text-sidebar-foreground/70">Odontología Integral & Estética</span>
+              <span className="font-semibold text-foreground text-lg leading-tight">La 92</span>
+              <span className="text-xs text-muted-foreground">Odontología Integral & Estética</span>
             </div>
           </div>
           <nav className="hidden md:flex items-center gap-6">
-            <a href="#servicios" className="text-sm text-sidebar-foreground/70 hover:text-white transition-colors">Servicios</a>
-            <a href="#equipo" className="text-sm text-sidebar-foreground/70 hover:text-white transition-colors">Equipo</a>
-            <a href="#contacto" className="text-sm text-sidebar-foreground/70 hover:text-white transition-colors">Contacto</a>
+            <a href="#servicios" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Servicios</a>
+            <a href="#equipo" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Equipo</a>
+            <a href="#contacto" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contacto</a>
           </nav>
           <div className="flex items-center gap-3">
             <Link to="/agenda">
-              <Button variant="outline" size="sm" className="hidden sm:flex border-sidebar-foreground/30 text-white hover:bg-sidebar-accent hover:text-white">
+              <Button variant="outline" size="sm" className="hidden sm:flex">
                 Portal Clínico
               </Button>
             </Link>
