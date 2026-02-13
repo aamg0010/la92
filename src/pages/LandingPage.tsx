@@ -240,23 +240,23 @@ export default function LandingPage() {
       </section>
 
       {/* Services Section */}
-      <section id="servicios" className="py-20 bg-sidebar-background">
+      <section id="servicios" className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Nuestros Servicios</h2>
-            <p className="text-sidebar-foreground/70 max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Nuestros Servicios</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
               Ofrecemos una amplia gama de tratamientos odontológicos con los más altos estándares de calidad.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {services.map((service, index) => (
-              <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-sidebar-accent border-sidebar-border">
+              <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-border">
                 <CardHeader>
                   <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4 group-hover:bg-primary/30 transition-colors">
                     <service.icon className="w-6 h-6 text-primary" />
                   </div>
-                  <CardTitle className="text-xl text-white">{service.title}</CardTitle>
-                  <CardDescription className="text-sidebar-foreground/70">{service.description}</CardDescription>
+                  <CardTitle className="text-xl text-foreground">{service.title}</CardTitle>
+                  <CardDescription className="text-muted-foreground">{service.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <a href="#contacto">
