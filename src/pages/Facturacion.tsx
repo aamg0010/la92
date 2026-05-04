@@ -1,9 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { useCurrency } from "@/hooks/useCurrency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   FileText,
   Plus,
@@ -20,11 +29,15 @@ import {
   Printer,
   Filter,
   Loader2,
+  MessageCircle,
+  Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useInvoices, useInvoiceStats } from "@/hooks/useInvoices";
+import { useInvoices, useInvoiceStats, type Invoice } from "@/hooks/useInvoices";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
 
 const statusConfig: Record<string, { label: string; className: string; icon: React.ElementType }> = {
   draft: { label: "Borrador", className: "bg-muted text-muted-foreground", icon: FileText },
@@ -39,16 +52,102 @@ const statusConfig: Record<string, { label: string; className: string; icon: Rea
 const Facturacion = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("invoices");
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [searchParams] = useSearchParams();
+  const { toast } = useToast();
 
   const { data: invoices = [], isLoading } = useInvoices();
   const { data: stats } = useInvoiceStats();
+  const { formatMoney } = useCurrency();
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-    }).format(amount);
+  // Alias for compatibility
+  const formatCurrency = formatMoney;
+
+  // Deep-link: open invoice detail from URL param
+  useEffect(() => {
+    const invoiceId = searchParams.get('invoice');
+    if (invoiceId && invoices.length > 0) {
+      const invoice = invoices.find(inv => inv.id === invoiceId);
+      if (invoice) {
+        setSelectedInvoice(invoice);
+      }
+    }
+  }, [searchParams, invoices]);
+
+  // Generate PDF for invoice
+  const handleDownloadPDF = (invoice: Invoice) => {
+    const doc = new jsPDF();
+    const patientName = invoice.patient
+      ? `${invoice.patient.first_name} ${invoice.patient.last_name}`
+      : "Cliente";
+
+    doc.setFontSize(20);
+    doc.text("FACTURA", 105, 20, { align: "center" });
+
+    doc.setFontSize(12);
+    doc.text(`No: ${invoice.invoice_number}`, 20, 40);
+    doc.text(`Fecha: ${format(new Date(invoice.issue_date), "dd/MM/yyyy")}`, 20, 50);
+    doc.text(`Paciente: ${patientName}`, 20, 60);
+    doc.text(`Documento: ${invoice.patient?.document_number || "-"}`, 20, 70);
+
+    doc.setFontSize(14);
+    doc.text(`Total: ${formatCurrency(Number(invoice.total))}`, 20, 90);
+
+    if (invoice.cufe) {
+      doc.setFontSize(8);
+      doc.text(`CUFE: ${invoice.cufe}`, 20, 110);
+    }
+
+    doc.save(`factura_${invoice.invoice_number}.pdf`);
+    toast({ title: "PDF descargado", description: `Factura ${invoice.invoice_number}` });
+  };
+
+  // Print invoice
+  const handlePrint = (invoice: Invoice) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const patientName = invoice.patient
+      ? `${invoice.patient.first_name} ${invoice.patient.last_name}`
+      : "Cliente";
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Factura ${invoice.invoice_number}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { text-align: center; }
+            .row { margin: 10px 0; }
+            .total { font-size: 1.2em; font-weight: bold; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <h1>FACTURA</h1>
+          <div class="row"><strong>No:</strong> ${invoice.invoice_number}</div>
+          <div class="row"><strong>Fecha:</strong> ${format(new Date(invoice.issue_date), "dd/MM/yyyy")}</div>
+          <div class="row"><strong>Paciente:</strong> ${patientName}</div>
+          <div class="row"><strong>Documento:</strong> ${invoice.patient?.document_number || "-"}</div>
+          <div class="total">Total: ${formatCurrency(Number(invoice.total))}</div>
+          ${invoice.cufe ? `<div class="row" style="font-size: 0.8em; margin-top: 30px;"><strong>CUFE:</strong> ${invoice.cufe}</div>` : ''}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  // Send via WhatsApp
+  const handleSendWhatsApp = (invoice: Invoice) => {
+    if (!invoice.patient?.phone) {
+      toast({ title: "Sin teléfono", description: "El paciente no tiene teléfono registrado", variant: "destructive" });
+      return;
+    }
+    const phone = invoice.patient.phone.replace(/[^\d]/g, '');
+    const message = encodeURIComponent(
+      `Hola ${invoice.patient.first_name}, le enviamos su factura No. ${invoice.invoice_number} por valor de ${formatCurrency(Number(invoice.total))}.`
+    );
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
 
   const filteredInvoices = invoices.filter(inv => 
@@ -229,20 +328,42 @@ const Facturacion = () => {
                               </td>
                               <td className="py-4 px-4">
                                 <div className="flex items-center justify-center gap-1">
-                                  <Button variant="ghost" size="icon" className="w-8 h-8">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="w-8 h-8"
+                                    onClick={() => setSelectedInvoice(invoice)}
+                                    title="Ver detalle"
+                                  >
                                     <Eye className="w-4 h-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="w-8 h-8">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="w-8 h-8"
+                                    onClick={() => handleDownloadPDF(invoice)}
+                                    title="Descargar PDF"
+                                  >
                                     <Download className="w-4 h-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="w-8 h-8">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="w-8 h-8"
+                                    onClick={() => handlePrint(invoice)}
+                                    title="Imprimir"
+                                  >
                                     <Printer className="w-4 h-4" />
                                   </Button>
-                                  {invoice.status === "draft" && (
-                                    <Button variant="ghost" size="icon" className="w-8 h-8 text-primary">
-                                      <Send className="w-4 h-4" />
-                                    </Button>
-                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="w-8 h-8 text-[#25D366]"
+                                    onClick={() => handleSendWhatsApp(invoice)}
+                                    title="Enviar por WhatsApp"
+                                  >
+                                    <MessageCircle className="w-4 h-4" />
+                                  </Button>
                                 </div>
                               </td>
                             </tr>
@@ -341,6 +462,109 @@ const Facturacion = () => {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Invoice Detail Dialog */}
+        <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Factura {selectedInvoice?.invoice_number}
+              </DialogTitle>
+              <DialogDescription>
+                Detalle de la factura electrónica
+              </DialogDescription>
+            </DialogHeader>
+            {selectedInvoice && (
+              <div className="space-y-4">
+                {/* Paciente */}
+                <div className="p-4 bg-muted rounded-lg space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Paciente</h4>
+                  <p className="text-lg font-medium">
+                    {selectedInvoice.patient?.first_name} {selectedInvoice.patient?.last_name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedInvoice.patient?.document_type}: {selectedInvoice.patient?.document_number}
+                  </p>
+                  {selectedInvoice.patient?.phone && (
+                    <a
+                      href={`https://wa.me/${selectedInvoice.patient.phone.replace(/[^\d]/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-[#25D366] hover:underline"
+                    >
+                      <Phone className="w-4 h-4" />
+                      {selectedInvoice.patient.phone}
+                    </a>
+                  )}
+                </div>
+
+                {/* Info factura */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-xs text-muted-foreground uppercase">Fecha Emisión</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedInvoice.issue_date), "d MMMM yyyy", { locale: es })}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-xs text-muted-foreground uppercase">Estado</p>
+                    <Badge variant="outline" className={cn("mt-1", statusConfig[selectedInvoice.status]?.className)}>
+                      {statusConfig[selectedInvoice.status]?.label || selectedInvoice.status}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-xs text-muted-foreground uppercase">Total Factura</p>
+                  <p className="text-2xl font-display font-bold text-primary">
+                    {formatCurrency(Number(selectedInvoice.total))}
+                  </p>
+                </div>
+
+                {/* CUFE */}
+                {selectedInvoice.cufe && (
+                  <div className="p-3 bg-muted/30 rounded-lg">
+                    <p className="text-xs text-muted-foreground uppercase">CUFE</p>
+                    <p className="text-xs font-mono break-all mt-1">{selectedInvoice.cufe}</p>
+                  </div>
+                )}
+
+                {/* Acciones */}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleDownloadPDF(selectedInvoice)}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Descargar PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handlePrint(selectedInvoice)}
+                  >
+                    <Printer className="w-4 h-4 mr-2" />
+                    Imprimir
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-[#25D366]"
+                    onClick={() => handleSendWhatsApp(selectedInvoice)}
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    WhatsApp
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { useCurrency } from "@/hooks/useCurrency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,17 @@ import {
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { usePatientDebt, usePayments, useFinancingPlans, usePaymentStats, useDebtStats } from "@/hooks/usePayments";
+import { usePaymentPlans, useOverdueInstallments } from "@/hooks/usePaymentPlans";
+import { PaymentPlansList, CreatePaymentPlanDialog, RegisterPaymentDialog } from "@/components/cobros";
+import { PaymentReceipt } from "@/components/cobros/PaymentReceipt";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import type { Payment } from "@/hooks/usePayments";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -41,20 +53,23 @@ const statusConfig = {
 const Cobros = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("cartera");
+  const [showCreatePlanDialog, setShowCreatePlanDialog] = useState(false);
+  const [showRegisterPaymentDialog, setShowRegisterPaymentDialog] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [selectedPatientDebt, setSelectedPatientDebt] = useState<number>(0);
 
   const { data: patientDebts = [], isLoading: loadingCartera } = usePatientDebt();
   const { data: payments = [], isLoading: loadingPayments } = usePayments();
   const { data: financingPlans = [] } = useFinancingPlans();
+  const { data: paymentPlans = [] } = usePaymentPlans();
+  const { data: overdueInstallments = [] } = useOverdueInstallments();
   const { data: stats } = usePaymentStats();
   const { data: debtStats } = useDebtStats();
+  const { formatMoney } = useCurrency();
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  // Alias for compatibility
+  const formatCurrency = formatMoney;
 
   const totalDebt = debtStats?.totalDebt ?? 0;
   const overdueDebt = debtStats?.overdueDebt ?? 0;
@@ -85,7 +100,7 @@ const Cobros = () => {
               <Download className="w-4 h-4 mr-2" />
               Exportar
             </Button>
-            <Button className="bg-primary hover:bg-primary/90">
+            <Button className="bg-primary hover:bg-primary/90" onClick={() => setShowRegisterPaymentDialog(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Registrar Pago
             </Button>
@@ -136,7 +151,7 @@ const Cobros = () => {
                   {formatCurrency(inPlanDebt)}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {financingPlans.filter(p => p.status === "active").length} planes activos
+                  {paymentPlans.filter(p => p.status === "active").length} planes activos
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
@@ -252,11 +267,26 @@ const Cobros = () => {
                                 </div>
 
                                 <div className="flex items-center gap-2 mt-3">
-                                  <Button variant="outline" size="sm">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedPatientId(debt.patientId);
+                                      setShowRegisterPaymentDialog(true);
+                                    }}
+                                  >
                                     <CreditCard className="w-4 h-4 mr-2" />
                                     Registrar Pago
                                   </Button>
-                                  <Button variant="ghost" size="sm">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedPatientId(debt.patientId);
+                                      setSelectedPatientDebt(remaining);
+                                      setShowCreatePlanDialog(true);
+                                    }}
+                                  >
                                     <Calendar className="w-4 h-4 mr-2" />
                                     Plan de Pago
                                   </Button>
@@ -278,36 +308,7 @@ const Cobros = () => {
               </TabsContent>
 
               <TabsContent value="planes" className="mt-0">
-                <div className="card-elevated divide-y divide-border">
-                  {financingPlans.filter(p => p.status === "active").length === 0 ? (
-                    <p className="text-center py-12 text-muted-foreground">No hay planes de pago activos</p>
-                  ) : (
-                    financingPlans.filter(p => p.status === "active").map((plan) => (
-                      <div key={plan.id} className="p-4 hover:bg-muted/30 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <Avatar className="w-10 h-10">
-                            <AvatarFallback className="bg-secondary text-secondary-foreground text-sm">
-                              {plan.patient?.first_name?.[0]}{plan.patient?.last_name?.[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground">
-                              {plan.patient?.first_name} {plan.patient?.last_name}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {plan.installments} cuotas de {formatCurrency(Number(plan.installment_amount))}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-foreground">{formatCurrency(Number(plan.remaining_amount))}</p>
-                            <p className="text-xs text-muted-foreground">restante</p>
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                <PaymentPlansList onCreatePlan={() => setShowCreatePlanDialog(true)} />
               </TabsContent>
 
               <TabsContent value="vencidos" className="mt-0">
@@ -353,19 +354,35 @@ const Cobros = () => {
                 Acciones Rápidas
               </h3>
               <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="flex-col h-auto py-4">
+                <Button
+                  variant="outline"
+                  className="flex-col h-auto py-4"
+                  onClick={() => setActiveTab("cartera")}
+                >
                   <Banknote className="w-5 h-5 mb-2 text-success" />
                   <span className="text-xs">Recibir Pago</span>
                 </Button>
-                <Button variant="outline" className="flex-col h-auto py-4">
+                <Button
+                  variant="outline"
+                  className="flex-col h-auto py-4"
+                  onClick={() => setShowCreatePlanDialog(true)}
+                >
                   <Calendar className="w-5 h-5 mb-2 text-primary" />
                   <span className="text-xs">Nuevo Plan</span>
                 </Button>
-                <Button variant="outline" className="flex-col h-auto py-4">
+                <Button
+                  variant="outline"
+                  className="flex-col h-auto py-4"
+                  onClick={() => setActiveTab("vencidos")}
+                >
                   <Send className="w-5 h-5 mb-2 text-accent" />
                   <span className="text-xs">Recordatorios</span>
                 </Button>
-                <Button variant="outline" className="flex-col h-auto py-4">
+                <Button
+                  variant="outline"
+                  className="flex-col h-auto py-4"
+                  onClick={() => setActiveTab("cartera")}
+                >
                   <Receipt className="w-5 h-5 mb-2 text-muted-foreground" />
                   <span className="text-xs">Ver Historial</span>
                 </Button>
@@ -386,21 +403,33 @@ const Cobros = () => {
               ) : (
                 <div className="space-y-3">
                   {recentPayments.map((payment) => (
-                    <div key={payment.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                    <div
+                      key={payment.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => setSelectedPayment(payment)}
+                    >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center">
                           <DollarSign className="w-4 h-4 text-success" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground">
                             {payment.patient?.first_name} {payment.patient?.last_name}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {format(new Date(payment.payment_date), "dd MMM", { locale: es })} · {payment.payment_method}
                           </p>
+                          {payment.notes && (
+                            <p className="text-xs text-muted-foreground/70 truncate max-w-[150px]" title={payment.notes}>
+                              {payment.notes}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <span className="font-semibold text-success">{formatCurrency(Number(payment.amount))}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-success">{formatCurrency(Number(payment.amount))}</span>
+                        <Receipt className="w-4 h-4 text-muted-foreground" />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -409,6 +438,82 @@ const Cobros = () => {
           </div>
         </div>
       </div>
+
+      {/* Create Payment Plan Dialog */}
+      <CreatePaymentPlanDialog
+        open={showCreatePlanDialog}
+        onOpenChange={(open) => {
+          setShowCreatePlanDialog(open);
+          if (!open) {
+            setSelectedPatientId(null);
+            setSelectedPatientDebt(0);
+          }
+        }}
+        preselectedPatientId={selectedPatientId || undefined}
+        preselectedAmount={selectedPatientDebt || undefined}
+      />
+
+      {/* Register Payment Dialog */}
+      <RegisterPaymentDialog
+        open={showRegisterPaymentDialog}
+        onOpenChange={(open) => {
+          setShowRegisterPaymentDialog(open);
+          if (!open) setSelectedPatientId(null);
+        }}
+        initialPatientId={selectedPatientId || undefined}
+      />
+
+      {/* Payment Receipt Dialog */}
+      <Dialog open={!!selectedPayment} onOpenChange={() => setSelectedPayment(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="w-5 h-5" />
+              Recibo de Pago
+            </DialogTitle>
+            <DialogDescription>
+              Detalles del pago registrado
+            </DialogDescription>
+          </DialogHeader>
+          {selectedPayment && (
+            <div className="space-y-4">
+              <PaymentReceipt
+                payment={{
+                  id: selectedPayment.id,
+                  amount: Number(selectedPayment.amount),
+                  payment_method: selectedPayment.payment_method,
+                  payment_date: selectedPayment.payment_date,
+                  reference_number: selectedPayment.reference_number || undefined,
+                  notes: selectedPayment.notes || undefined,
+                }}
+                patient={selectedPayment.patient ? {
+                  first_name: selectedPayment.patient.first_name,
+                  last_name: selectedPayment.patient.last_name,
+                  document_number: "",
+                  phone: selectedPayment.patient.phone,
+                } : undefined}
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => window.print()}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Imprimir
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setSelectedPayment(null)}
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/apiClient";
 import { useToast } from "@/hooks/use-toast";
 
 export interface Treatment {
@@ -42,12 +42,11 @@ export function useTreatments() {
   return useQuery({
     queryKey: ["treatments"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("treatments")
+      const { data, error } = await api
+        .from<Treatment>("treatments")
         .select("*")
-        .order("category", { ascending: true })
-        .order("name", { ascending: true });
-      
+        .order("category", { ascending: true });
+
       if (error) throw error;
       return data as Treatment[];
     },
@@ -59,12 +58,12 @@ export function useTreatment(id: string | null) {
     queryKey: ["treatment", id],
     queryFn: async () => {
       if (!id) return null;
-      const { data, error } = await supabase
-        .from("treatments")
+      const { data, error } = await api
+        .from<Treatment>("treatments")
         .select("*")
         .eq("id", id)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data as Treatment | null;
     },
@@ -77,14 +76,11 @@ export function useTreatmentMaterials(treatmentId: string | null) {
     queryKey: ["treatment-materials", treatmentId],
     queryFn: async () => {
       if (!treatmentId) return [];
-      const { data, error } = await supabase
-        .from("treatment_materials")
-        .select(`
-          *,
-          inventory_item:inventory_items(id, name, unit, unit_cost)
-        `)
+      const { data, error } = await api
+        .from<TreatmentMaterial>("treatment_materials")
+        .select("*,inventory_item:inventory_items(id,name,unit,unit_cost)")
         .eq("treatment_id", treatmentId);
-      
+
       if (error) throw error;
       return data as TreatmentMaterial[];
     },
@@ -98,12 +94,12 @@ export function useCreateTreatment() {
 
   return useMutation({
     mutationFn: async (treatment: TreatmentInsert) => {
-      const { data, error } = await supabase
-        .from("treatments")
+      const { data, error } = await api
+        .from<Treatment>("treatments")
         .insert(treatment)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -130,13 +126,13 @@ export function useUpdateTreatment() {
 
   return useMutation({
     mutationFn: async ({ id, ...treatment }: TreatmentUpdate & { id: string }) => {
-      const { data, error } = await supabase
-        .from("treatments")
+      const { data, error } = await api
+        .from<Treatment>("treatments")
         .update(treatment)
         .eq("id", id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -164,11 +160,11 @@ export function useDeleteTreatment() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await api
         .from("treatments")
         .delete()
         .eq("id", id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -200,12 +196,12 @@ export function useAddTreatmentMaterial() {
       is_optional?: boolean;
       notes?: string;
     }) => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("treatment_materials")
         .insert(material)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -232,11 +228,11 @@ export function useRemoveTreatmentMaterial() {
 
   return useMutation({
     mutationFn: async ({ id, treatmentId }: { id: string; treatmentId: string }) => {
-      const { error } = await supabase
+      const { error } = await api
         .from("treatment_materials")
         .delete()
         .eq("id", id);
-      
+
       if (error) throw error;
       return treatmentId;
     },

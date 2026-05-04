@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/apiClient";
 import { useToast } from "@/hooks/use-toast";
 import type { AppRole } from "@/hooks/useUserRole";
 
@@ -7,45 +7,23 @@ export interface AdminUser {
   user_id: string;
   email: string;
   full_name: string;
+  specialty?: string;
   role: AppRole | null;
   created_at: string;
-  avatar_url: string | null;
+  is_active: boolean;
+  is_superadmin: boolean;
+  clinic_id?: string;
+  clinic_name?: string;
 }
 
 export function useAdminUsers() {
   return useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      // Get all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-      
-      if (profilesError) throw profilesError;
-
-      // Get all roles
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("*");
-      
-      if (rolesError) throw rolesError;
-
-      // Create a map of user_id to role
-      const roleMap = new Map<string, AppRole>();
-      roles?.forEach(r => roleMap.set(r.user_id, r.role as AppRole));
-
-      // Combine data
-      const users: AdminUser[] = profiles?.map(p => ({
-        user_id: p.user_id,
-        email: "", // We'll need to get this from the context or auth table
-        full_name: p.full_name,
-        role: roleMap.get(p.user_id) || null,
-        created_at: p.created_at,
-        avatar_url: p.avatar_url,
-      })) || [];
-
-      return users;
+      // Use get_clinic_users for clinic admins (get_all_users requires superadmin)
+      const { data, error } = await api.rpc<AdminUser[]>("get_clinic_users");
+      if (error) throw error;
+      return data || [];
     },
   });
 }
@@ -56,29 +34,14 @@ export function useUpdateUserRole() {
 
   return useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
-      // First check if user already has a role
-      const { data: existingRole } = await supabase
-        .from("user_roles")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
+      // Use RPC function that works for clinic admins
+      const { data, error } = await api.rpc("update_clinic_user_role", {
+        p_user_id: userId,
+        p_new_role: newRole,
+      });
 
-      if (existingRole) {
-        // Update existing role
-        const { error } = await supabase
-          .from("user_roles")
-          .update({ role: newRole })
-          .eq("user_id", userId);
-        
-        if (error) throw error;
-      } else {
-        // Insert new role
-        const { error } = await supabase
-          .from("user_roles")
-          .insert({ user_id: userId, role: newRole });
-        
-        if (error) throw error;
-      }
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
@@ -97,30 +60,83 @@ export function useUpdateUserRole() {
   });
 }
 
-export function useDeleteUserRole() {
+export function useToggleUserActive() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (userId: string) => {
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
-      
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      // Use RPC function that works for clinic admins
+      const { data, error } = await api.rpc("toggle_clinic_user_active", {
+        p_user_id: userId,
+        p_is_active: isActive,
+      });
+
       if (error) throw error;
+      return isActive;
     },
-    onSuccess: () => {
+    onSuccess: (isActive) => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       toast({
-        title: "Rol eliminado",
-        description: "El rol del usuario ha sido eliminado.",
+        title: isActive ? "Usuario habilitado" : "Usuario deshabilitado",
+        description: isActive
+          ? "El usuario puede acceder al sistema nuevamente."
+          : "El usuario ya no puede acceder al sistema.",
       });
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: "No se pudo eliminar el rol. " + error.message,
+        description: "No se pudo cambiar el estado del usuario. " + error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+// Función para crear nuevo usuario para la clínica del admin actual
+export function useCreateClinicUser() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      email,
+      password,
+      fullName,
+      role,
+      specialty
+    }: {
+      email: string;
+      password: string;
+      fullName: string;
+      role: AppRole;
+      specialty?: string;
+    }) => {
+      // Use create_user_for_my_clinic which gets clinic from JWT (no superadmin needed)
+      const { data, error } = await api.rpc("create_user_for_my_clinic", {
+        p_email: email,
+        p_password: password,
+        p_full_name: fullName,
+        p_role: role,
+        p_specialty: specialty || null,
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-clinics"] });
+      toast({
+        title: "Usuario creado",
+        description: "El nuevo usuario ha sido creado y asignado a la clínica.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
         variant: "destructive",
       });
     },

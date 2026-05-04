@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/apiClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type DocumentCategory = "legal" | "cv" | "other";
 
@@ -24,8 +25,8 @@ export function useClinicDocuments(category?: DocumentCategory) {
   return useQuery({
     queryKey: ["clinic-documents", category],
     queryFn: async () => {
-      let query = supabase
-        .from("clinic_documents")
+      let query = api
+        .from<ClinicDocument>("clinic_documents")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -37,21 +38,22 @@ export function useClinicDocuments(category?: DocumentCategory) {
       if (error) throw error;
 
       // If we have documents with user_ids, fetch their names
-      const userIds = data?.filter(d => d.user_id).map(d => d.user_id) || [];
+      const docs = data as ClinicDocument[];
+      const userIds = docs?.filter(d => d.user_id).map(d => d.user_id) || [];
       let userNameMap: Record<string, string> = {};
-      
+
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles } = await api
           .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", userIds);
-        
-        profiles?.forEach(p => {
+          .select("user_id,full_name")
+          .in("user_id", userIds as string[]);
+
+        (profiles as { user_id: string; full_name: string }[])?.forEach(p => {
           userNameMap[p.user_id] = p.full_name;
         });
       }
 
-      return data?.map((doc) => ({
+      return docs?.map((doc) => ({
         ...doc,
         user_name: doc.user_id ? userNameMap[doc.user_id] || null : null,
       })) as ClinicDocument[];
@@ -62,6 +64,7 @@ export function useClinicDocuments(category?: DocumentCategory) {
 export function useUploadClinicDocument() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -77,22 +80,13 @@ export function useUploadClinicDocument() {
       category: DocumentCategory;
       userId?: string;
     }) => {
-      // Upload file to storage
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${category}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("clinic-documents")
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      // TODO: Implement file upload endpoint for PostgREST
+      // For now, create a placeholder record
       if (!user) throw new Error("No authenticated user");
 
-      // Create document record
-      const { data, error } = await supabase
+      const filePath = `${category}/${Date.now()}-${Math.random().toString(36).substring(7)}.${file.name.split(".").pop()}`;
+
+      const { data, error } = await api
         .from("clinic_documents")
         .insert({
           name,
@@ -108,19 +102,25 @@ export function useUploadClinicDocument() {
         .single();
 
       if (error) throw error;
+
+      toast({
+        title: "Nota",
+        description: "El registro se creó pero la subida de archivos requiere configuración adicional.",
+      });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clinic-documents"] });
       toast({
-        title: "Documento subido",
-        description: "El documento se ha subido correctamente.",
+        title: "Documento registrado",
+        description: "El documento se ha registrado correctamente.",
       });
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: "No se pudo subir el documento. " + error.message,
+        description: "No se pudo registrar el documento. " + error.message,
         variant: "destructive",
       });
     },
@@ -133,15 +133,8 @@ export function useDeleteClinicDocument() {
 
   return useMutation({
     mutationFn: async (document: ClinicDocument) => {
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from("clinic-documents")
-        .remove([document.file_path]);
-
-      if (storageError) throw storageError;
-
-      // Delete record
-      const { error } = await supabase
+      // Delete record (file deletion would require separate storage handling)
+      const { error } = await api
         .from("clinic_documents")
         .delete()
         .eq("id", document.id);
@@ -170,21 +163,13 @@ export function useDownloadClinicDocument() {
 
   return useMutation({
     mutationFn: async (document: ClinicDocument) => {
-      const { data, error } = await supabase.storage
-        .from("clinic-documents")
-        .download(document.file_path);
-
-      if (error) throw error;
-
-      // Create download link
-      const url = URL.createObjectURL(data);
-      const a = window.document.createElement("a");
-      a.href = url;
-      a.download = document.name + (document.file_type ? `.${document.file_type.split("/")[1]}` : "");
-      window.document.body.appendChild(a);
-      a.click();
-      window.document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // TODO: Implement file download for PostgREST storage
+      toast({
+        title: "Funcionalidad pendiente",
+        description: "La descarga de archivos requiere configuración adicional.",
+        variant: "destructive",
+      });
+      throw new Error("File download not implemented");
     },
     onError: (error) => {
       toast({

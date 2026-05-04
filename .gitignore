@@ -22,3 +22,35 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Docker local state
+/docker/.env
+/docker/pgdata/
+/docker/backups/
+
+# Secrets / env (NEVER commit)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Build artifacts y backups locales
+dist.tar.gz
+*.tar.gz
+BackUpSmile.sql
+*.sql.bak
+*.bak_original_*
+
+# Media pesados / temporales
+Explainer_Video.mp4
+logo.jpeg
+Informe_Tecnico_Dentry.pdf
+nul
+test-parse.cjs
+*.docx
+~$*
+
+# Carpetas con material no versionable
+Images/
+ManualdeMarca/
+

@@ -1,11 +1,13 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Building2, MessageSquare, Settings2, Brain } from "lucide-react";
+import { User, Building2, MessageSquare, Settings2, Brain, Receipt, Shield } from "lucide-react";
 import { ProfileSettings } from "@/components/settings/ProfileSettings";
 import { ClinicSettings } from "@/components/settings/ClinicSettings";
 import { MessageTemplatesSettings } from "@/components/settings/MessageTemplatesSettings";
 import { PreferencesSettings } from "@/components/settings/PreferencesSettings";
 import { AISettings } from "@/components/settings/AISettings";
+import { InvoiceSettings } from "@/components/settings/InvoiceSettings";
+import { LegalDocumentsPanel } from "@/components/legal/LegalDocumentsPanel";
 import { useUserRole } from "@/hooks/useUserRole";
 
 const Configuracion = () => {
@@ -48,6 +50,14 @@ const Configuracion = () => {
               <Brain className="w-4 h-4" />
               <span className="hidden sm:inline">IA</span>
             </TabsTrigger>
+            <TabsTrigger value="invoice" className="gap-2">
+              <Receipt className="w-4 h-4" />
+              <span className="hidden sm:inline">Recibos</span>
+            </TabsTrigger>
+            <TabsTrigger value="legal" className="gap-2">
+              <Shield className="w-4 h-4" />
+              <span className="hidden sm:inline">Legal</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -68,6 +78,14 @@ const Configuracion = () => {
 
           <TabsContent value="ai">
             <AISettings />
+          </TabsContent>
+
+          <TabsContent value="invoice">
+            <InvoiceSettings />
+          </TabsContent>
+
+          <TabsContent value="legal">
+            <LegalDocumentsPanel />
           </TabsContent>
         </Tabs>
       </div>

@@ -2,18 +2,43 @@ import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Plus, 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
   Filter,
-  Loader2
+  Loader2,
+  Trash2,
+  X,
+  Eye,
+  Phone,
+  Edit,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAppointments } from "@/hooks/useAppointments";
+import { useAppointments, useDeleteAppointment, useUpdateAttendance, type Appointment } from "@/hooks/useAppointments";
 import { format, startOfWeek, addDays, parseISO } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 import { es } from "date-fns/locale";
 import { NewAppointmentDialog } from "@/components/appointments/NewAppointmentDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const timeSlots = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
@@ -36,6 +61,12 @@ const statusColors: Record<string, string> = {
 const Agenda = () => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [view, setView] = useState<"week" | "day">("week");
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [newAppointmentData, setNewAppointmentData] = useState<{ date: string; time: string } | null>(null);
+
+  const deleteAppointment = useDeleteAppointment();
+  const updateAttendance = useUpdateAttendance();
 
   const weekStart = useMemo(() => {
     const start = startOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -70,6 +101,12 @@ const Agenda = () => {
     if (!appointments) return [];
     const dateStr = format(date, "yyyy-MM-dd");
     return appointments.filter(apt => apt.appointment_date === dateStr);
+  };
+
+  const handleDeleteAppointment = async () => {
+    if (!appointmentToDelete) return;
+    await deleteAppointment.mutateAsync(appointmentToDelete.id);
+    setAppointmentToDelete(null);
   };
 
   return (
@@ -136,7 +173,7 @@ const Agenda = () => {
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
             ) : (
-              <div className="min-w-[800px]">
+              <div className="min-w-[600px] lg:min-w-[800px]">
                 {/* Day Headers */}
                 <div className="grid grid-cols-[80px_repeat(6,1fr)] sticky top-0 bg-card z-10 border-b border-border">
                   <div className="p-3" />
@@ -192,10 +229,15 @@ const Agenda = () => {
                         )}
                       >
                         {/* Hour Lines */}
-                        {timeSlots.map((_, i) => (
+                        {timeSlots.map((time, i) => (
                           <div
                             key={i}
-                            className="h-12 border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                            className="h-12 border-b border-border/50 hover:bg-primary/10 transition-colors cursor-pointer"
+                            onClick={() => {
+                              const dateStr = format(date, "yyyy-MM-dd");
+                              setNewAppointmentData({ date: dateStr, time });
+                            }}
+                            title={`Crear cita: ${format(date, "d MMM", { locale: es })} a las ${time}`}
                           />
                         ))}
 
@@ -211,10 +253,11 @@ const Agenda = () => {
                             <div
                               key={apt.id}
                               className={cn(
-                                "absolute left-1 right-1 rounded-lg p-2 cursor-pointer overflow-hidden",
+                                "absolute left-1 right-1 rounded-lg p-2 cursor-pointer overflow-hidden group",
                                 statusColors[apt.status] || statusColors.scheduled
                               )}
                               style={{ top: `${top}px`, height: `${height}px` }}
+                              onClick={() => setSelectedAppointment(apt)}
                             >
                               <div className="flex items-start gap-2">
                                 <Avatar className="w-6 h-6 shrink-0">
@@ -233,6 +276,17 @@ const Agenda = () => {
                                     {apt.start_time.slice(0, 5)}
                                   </p>
                                 </div>
+                                {/* Botón eliminar - visible on hover */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAppointmentToDelete(apt);
+                                  }}
+                                  className="absolute top-1 right-1 p-1 rounded-full bg-destructive/80 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+                                  title="Eliminar cita"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
                               </div>
                             </div>
                           );
@@ -246,6 +300,210 @@ const Agenda = () => {
           </div>
         </div>
       </div>
+
+      {/* Dialog de confirmación para eliminar */}
+      <AlertDialog open={!!appointmentToDelete} onOpenChange={(open) => !open && setAppointmentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar cita</AlertDialogTitle>
+            <AlertDialogDescription>
+              {appointmentToDelete && (
+                <>
+                  ¿Estás seguro de que deseas eliminar la cita de{" "}
+                  <strong>
+                    {appointmentToDelete.patient
+                      ? `${appointmentToDelete.patient.first_name} ${appointmentToDelete.patient.last_name}`
+                      : "este paciente"}
+                  </strong>{" "}
+                  programada para el{" "}
+                  <strong>
+                    {format(new Date(appointmentToDelete.appointment_date), "d 'de' MMMM", { locale: es })}
+                  </strong>{" "}
+                  a las <strong>{appointmentToDelete.start_time.slice(0, 5)}</strong>?
+                  <br /><br />
+                  Esta acción no se puede deshacer.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAppointment}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAppointment.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de detalle de cita */}
+      <Dialog open={!!selectedAppointment} onOpenChange={(open) => !open && setSelectedAppointment(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-5 h-5 text-primary" />
+              Detalle de la Cita
+            </DialogTitle>
+            <DialogDescription>
+              Información completa de la cita programada
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAppointment && (
+            <div className="space-y-4">
+              {/* Información del paciente */}
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                  {selectedAppointment.emergency_name ? "Paciente (Urgencia)" : "Paciente"}
+                </h4>
+                <p className="text-lg font-medium">
+                  {selectedAppointment.patient
+                    ? `${selectedAppointment.patient.first_name} ${selectedAppointment.patient.last_name}`
+                    : selectedAppointment.emergency_name || "Paciente no especificado"}
+                </p>
+                {(selectedAppointment.patient?.phone || selectedAppointment.emergency_phone) && (
+                  <a
+                    href={`https://wa.me/${(selectedAppointment.patient?.phone || selectedAppointment.emergency_phone || '').replace(/[^\d]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-[#25D366] hover:underline"
+                  >
+                    <Phone className="w-4 h-4" />
+                    {selectedAppointment.patient?.phone || selectedAppointment.emergency_phone}
+                  </a>
+                )}
+                {selectedAppointment.emergency_name && (
+                  <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 text-xs">
+                    Urgencia - Paciente sin registrar
+                  </Badge>
+                )}
+              </div>
+
+              {/* Estado de asistencia */}
+              <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                  Marcar Asistencia
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={selectedAppointment.attendance_status === "attended" ? "default" : "outline"}
+                    className={selectedAppointment.attendance_status === "attended" ? "bg-green-600 hover:bg-green-700" : ""}
+                    onClick={() => {
+                      updateAttendance.mutate({ id: selectedAppointment.id, attendance_status: "attended" });
+                      setSelectedAppointment({ ...selectedAppointment, attendance_status: "attended" });
+                    }}
+                    disabled={updateAttendance.isPending}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    Asistió
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={selectedAppointment.attendance_status === "no_show" ? "default" : "outline"}
+                    className={selectedAppointment.attendance_status === "no_show" ? "bg-red-600 hover:bg-red-700" : ""}
+                    onClick={() => {
+                      updateAttendance.mutate({ id: selectedAppointment.id, attendance_status: "no_show" });
+                      setSelectedAppointment({ ...selectedAppointment, attendance_status: "no_show" });
+                    }}
+                    disabled={updateAttendance.isPending}
+                  >
+                    <XCircle className="w-4 h-4 mr-1" />
+                    No Asistió
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={selectedAppointment.attendance_status === "cancelled" ? "default" : "outline"}
+                    className={selectedAppointment.attendance_status === "cancelled" ? "bg-gray-600 hover:bg-gray-700" : ""}
+                    onClick={() => {
+                      updateAttendance.mutate({ id: selectedAppointment.id, attendance_status: "cancelled" });
+                      setSelectedAppointment({ ...selectedAppointment, attendance_status: "cancelled" });
+                    }}
+                    disabled={updateAttendance.isPending}
+                  >
+                    Cancelada
+                  </Button>
+                </div>
+              </div>
+
+              {/* Fecha y hora */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground uppercase">Fecha</p>
+                  <p className="font-medium">
+                    {format(new Date(selectedAppointment.appointment_date), "EEEE d 'de' MMMM", { locale: es })}
+                  </p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground uppercase">Hora</p>
+                  <p className="font-medium">
+                    {selectedAppointment.start_time.slice(0, 5)} - {selectedAppointment.end_time.slice(0, 5)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Tratamiento */}
+              {selectedAppointment.treatment_type && (
+                <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-xs text-muted-foreground uppercase">Tratamiento</p>
+                  <p className="font-medium text-primary">{selectedAppointment.treatment_type}</p>
+                </div>
+              )}
+
+              {/* Notas */}
+              {selectedAppointment.notes && (
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <p className="text-xs text-muted-foreground uppercase">Notas</p>
+                  <p className="text-sm mt-1">{selectedAppointment.notes}</p>
+                </div>
+              )}
+
+              {/* Acciones */}
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => {
+                    setSelectedAppointment(null);
+                    // TODO: Abrir dialog de edición
+                  }}
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Editar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-destructive hover:text-destructive"
+                  onClick={() => {
+                    setAppointmentToDelete(selectedAppointment);
+                    setSelectedAppointment(null);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Eliminar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de nueva cita con fecha/hora preset */}
+      <NewAppointmentDialog
+        open={!!newAppointmentData}
+        onOpenChange={(open) => !open && setNewAppointmentData(null)}
+        defaultDate={newAppointmentData?.date}
+        defaultTime={newAppointmentData?.time}
+        onSuccess={() => setNewAppointmentData(null)}
+      />
     </MainLayout>
   );
 };

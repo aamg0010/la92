@@ -26,7 +26,7 @@ import {
   useRemoveTreatmentMaterial,
 } from "@/hooks/useTreatments";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/apiClient";
 
 interface TreatmentMaterialsPanelProps {
   treatmentId: string;
@@ -47,13 +47,13 @@ export function TreatmentMaterialsPanel({
   const { data: inventoryItems = [] } = useQuery({
     queryKey: ["inventory-items-select"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("inventory_items")
-        .select("id, name, unit, unit_cost")
+        .select("id,name,unit,unit_cost")
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
-      return data;
+      return data as { id: string; name: string; unit: string; unit_cost: number }[];
     },
   });
 

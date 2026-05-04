@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { useCurrency } from "@/hooks/useCurrency";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,9 @@ import {
   History,
   Box,
   Loader2,
+  Sparkles,
+  Trash2,
+  Edit,
 } from "lucide-react";
 import {
   useInventoryItems,
@@ -50,8 +54,23 @@ import {
   useLowStockItems,
   useCreateInventoryItem,
   useCreateInventoryMovement,
+  useCreateInventoryCategory,
+  useDeleteInventoryCategory,
   MOVEMENT_TYPES,
+  type InventoryCategory,
 } from "@/hooks/useInventory";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -75,7 +94,7 @@ const getMovementBadge = (type: string) => {
     case "adjustment":
       return <Badge className="bg-warning/20 text-warning">Ajuste</Badge>;
     case "return":
-      return <Badge className="bg-accent/20 text-accent">Devolución</Badge>;
+      return <Badge className="bg-accent/20 text-accent">Devolucion</Badge>;
     case "expired":
       return <Badge variant="destructive">Vencido</Badge>;
     default:
@@ -83,12 +102,62 @@ const getMovementBadge = (type: string) => {
   }
 };
 
+// Category icon mapping
+const getCategoryIcon = (iconName: string | null) => {
+  switch (iconName) {
+    case "Sparkles":
+      return <Sparkles className="w-6 h-6" />;
+    case "Package":
+      return <Package className="w-6 h-6" />;
+    case "Box":
+      return <Box className="w-6 h-6" />;
+    default:
+      return <Package className="w-6 h-6" />;
+  }
+};
+
+// Category color mapping to Tailwind classes
+const getCategoryColorClasses = (color: string | null) => {
+  switch (color) {
+    case "emerald":
+      return { bg: "bg-emerald-500/10", text: "text-emerald-500" };
+    case "blue":
+      return { bg: "bg-blue-500/10", text: "text-blue-500" };
+    case "purple":
+      return { bg: "bg-purple-500/10", text: "text-purple-500" };
+    case "orange":
+      return { bg: "bg-orange-500/10", text: "text-orange-500" };
+    case "red":
+      return { bg: "bg-red-500/10", text: "text-red-500" };
+    case "yellow":
+      return { bg: "bg-yellow-500/10", text: "text-yellow-500" };
+    default:
+      return { bg: "bg-primary/10", text: "text-primary" };
+  }
+};
+
+const CATEGORY_COLORS = [
+  { value: "blue", label: "Azul" },
+  { value: "emerald", label: "Verde" },
+  { value: "purple", label: "Morado" },
+  { value: "orange", label: "Naranja" },
+  { value: "red", label: "Rojo" },
+  { value: "yellow", label: "Amarillo" },
+];
+
+const CATEGORY_ICONS = [
+  { value: "Package", label: "Caja" },
+  { value: "Sparkles", label: "Limpieza" },
+  { value: "Box", label: "Contenedor" },
+];
+
 export default function Inventario() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [newItemDialogOpen, setNewItemDialogOpen] = useState(false);
   const [newMovementDialogOpen, setNewMovementDialogOpen] = useState(false);
-  
+  const [newCategoryDialogOpen, setNewCategoryDialogOpen] = useState(false);
+
   // Form states
   const [newItem, setNewItem] = useState({
     sku: "", name: "", category_id: "", unit: "unidad", quantity: 0,
@@ -97,6 +166,9 @@ export default function Inventario() {
   const [newMovement, setNewMovement] = useState({
     item_id: "", movement_type: "purchase", quantity: 0, notes: "",
   });
+  const [newCategory, setNewCategory] = useState({
+    name: "", description: "", icon: "Package", color: "blue",
+  });
 
   // Data hooks
   const { data: items = [], isLoading: loadingItems } = useInventoryItems();
@@ -104,10 +176,13 @@ export default function Inventario() {
   const { data: movements = [], isLoading: loadingMovements } = useInventoryMovements();
   const { data: stats } = useInventoryStats();
   const { data: lowStockItems = [] } = useLowStockItems();
-  
+  const { formatMoney } = useCurrency();
+
   // Mutations
   const createItem = useCreateInventoryItem();
   const createMovement = useCreateInventoryMovement();
+  const createCategory = useCreateInventoryCategory();
+  const deleteCategory = useDeleteInventoryCategory();
 
   const filteredItems = items.filter((item) => {
     const matchesSearch =
@@ -133,10 +208,10 @@ export default function Inventario() {
 
   const handleCreateMovement = async () => {
     const movementType = MOVEMENT_TYPES.find(m => m.value === newMovement.movement_type);
-    const signedQuantity = movementType?.sign === -1 
-      ? -Math.abs(newMovement.quantity) 
+    const signedQuantity = movementType?.sign === -1
+      ? -Math.abs(newMovement.quantity)
       : Math.abs(newMovement.quantity);
-    
+
     await createMovement.mutateAsync({
       item_id: newMovement.item_id,
       movement_type: newMovement.movement_type,
@@ -147,8 +222,26 @@ export default function Inventario() {
     setNewMovement({ item_id: "", movement_type: "purchase", quantity: 0, notes: "" });
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(amount);
+  const handleCreateCategory = async () => {
+    await createCategory.mutateAsync({
+      name: newCategory.name,
+      description: newCategory.description || null,
+      icon: newCategory.icon,
+      color: newCategory.color,
+    });
+    setNewCategoryDialogOpen(false);
+    setNewCategory({ name: "", description: "", icon: "Package", color: "blue" });
+  };
+
+  const handleDeleteCategory = async (category: InventoryCategory) => {
+    if (category.is_default) {
+      return; // Default categories cannot be deleted
+    }
+    await deleteCategory.mutateAsync(category.id);
+  };
+
+  // Alias for compatibility
+  const formatCurrency = formatMoney;
 
   return (
     <MainLayout>
@@ -492,29 +585,139 @@ export default function Inventario() {
 
           {/* Categories Tab */}
           <TabsContent value="categories" className="space-y-4">
+            <div className="flex justify-end mb-4">
+              <Dialog open={newCategoryDialogOpen} onOpenChange={setNewCategoryDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button><Plus className="w-4 h-4 mr-2" />Nueva Categoria</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Crear Nueva Categoria</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <Label>Nombre *</Label>
+                      <Input
+                        placeholder="Nombre de la categoria"
+                        value={newCategory.name}
+                        onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Descripcion</Label>
+                      <Textarea
+                        placeholder="Descripcion de la categoria"
+                        value={newCategory.description}
+                        onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Icono</Label>
+                        <Select value={newCategory.icon} onValueChange={(v) => setNewCategory({ ...newCategory, icon: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {CATEGORY_ICONS.map((icon) => (
+                              <SelectItem key={icon.value} value={icon.value}>{icon.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Color</Label>
+                        <Select value={newCategory.color} onValueChange={(v) => setNewCategory({ ...newCategory, color: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {CATEGORY_COLORS.map((color) => (
+                              <SelectItem key={color.value} value={color.value}>{color.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <Button variant="outline" onClick={() => setNewCategoryDialogOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleCreateCategory} disabled={!newCategory.name || createCategory.isPending}>
+                      {createCategory.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Crear Categoria
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {categories.map((cat) => {
                 const catItems = items.filter((i) => i.category_id === cat.id);
                 const catValue = catItems.reduce((acc, i) => acc + Number(i.quantity) * Number(i.unit_cost), 0);
+                const colorClasses = getCategoryColorClasses(cat.color);
                 return (
                   <Card key={cat.id} className="card-elevated hover:shadow-lg transition-shadow">
                     <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <Package className="w-6 h-6 text-primary" />
+                      <div className="flex items-start gap-3">
+                        <div className={`w-12 h-12 rounded-xl ${colorClasses.bg} flex items-center justify-center ${colorClasses.text}`}>
+                          {getCategoryIcon(cat.icon)}
                         </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{cat.name}</p>
-                          <p className="text-sm text-muted-foreground">{catItems.length} artículos</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-foreground truncate">{cat.name}</p>
+                            {cat.is_default && (
+                              <Badge variant="secondary" className="text-xs">Por defecto</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{catItems.length} articulos</p>
+                          {cat.description && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{cat.description}</p>
+                          )}
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex flex-col items-end gap-2">
                           <p className="font-semibold text-foreground">{formatCurrency(catValue)}</p>
+                          {!cat.is_default && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Eliminar Categoria</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta seguro que desea eliminar la categoria "{cat.name}"?
+                                    {catItems.length > 0 && (
+                                      <span className="block mt-2 text-destructive font-medium">
+                                        Esta categoria tiene {catItems.length} articulo(s). Debe moverlos a otra categoria primero.
+                                      </span>
+                                    )}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteCategory(cat)}
+                                    disabled={catItems.length > 0 || deleteCategory.isPending}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    {deleteCategory.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                    Eliminar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 );
               })}
+              {categories.length === 0 && (
+                <Card className="col-span-full card-elevated">
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    No hay categorias definidas. Cree una nueva categoria para organizar su inventario.
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 

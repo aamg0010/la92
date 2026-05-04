@@ -33,7 +33,7 @@ import {
   useDeleteSupplierProduct,
 } from "@/hooks/useSuppliers";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/apiClient";
 
 interface SupplierProductsDialogProps {
   open: boolean;
@@ -62,13 +62,13 @@ export function SupplierProductsDialog({
   const { data: inventoryItems = [] } = useQuery({
     queryKey: ["inventory-items-link"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("inventory_items")
-        .select("id, name, unit")
+        .select("id,name,unit")
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
-      return data;
+      return data as { id: string; name: string; unit: string }[];
     },
   });
 

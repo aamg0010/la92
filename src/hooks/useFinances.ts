@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/apiClient";
 
 interface FinancialMetrics {
   totalRevenue: number;
@@ -33,6 +33,45 @@ interface MonthlyRevenue {
   procedures: number;
 }
 
+interface Payment {
+  amount: number;
+  payment_date: string;
+  invoice_id: string;
+}
+
+interface AppointmentBasic {
+  id: string;
+  patient_id: string;
+  appointment_date: string;
+  start_time: string;
+  end_time: string;
+  doctor_id: string;
+  status: string;
+}
+
+interface Profile {
+  user_id: string;
+  full_name: string;
+}
+
+interface Invoice {
+  id: string;
+  created_by: string;
+  issue_date: string;
+}
+
+interface InvoiceItem {
+  total: number;
+  created_at: string;
+  treatment?: { category: string } | null;
+}
+
+interface ClinicSettingsBasic {
+  opening_time: string;
+  closing_time: string;
+  working_days: string[];
+}
+
 // ============ FINANCIAL METRICS ============
 
 export function useFinancialMetrics(period: {
@@ -45,15 +84,15 @@ export function useFinancialMetrics(period: {
     queryKey: ["financial-metrics", period],
     queryFn: async (): Promise<FinancialMetrics> => {
       // Ingresos del periodo actual (pagos recibidos)
-      const { data: currentPayments } = await supabase
-        .from("payments")
+      const { data: currentPayments } = await api
+        .from<Payment>("payments")
         .select("amount")
         .gte("payment_date", period.startDate)
         .lte("payment_date", period.endDate);
 
       // Procedimientos del periodo actual (citas completadas)
-      const { data: currentAppointments } = await supabase
-        .from("appointments")
+      const { data: currentAppointments } = await api
+        .from<AppointmentBasic>("appointments")
         .select("id, patient_id")
         .gte("appointment_date", period.startDate)
         .lte("appointment_date", period.endDate)
@@ -61,10 +100,10 @@ export function useFinancialMetrics(period: {
 
       const totalRevenue = currentPayments?.reduce((acc, p) => acc + Number(p.amount), 0) || 0;
       const totalProcedures = currentAppointments?.length || 0;
-      
+
       const uniquePatients = new Set(currentAppointments?.map((a) => a.patient_id));
       const patientsAttended = uniquePatients.size;
-      
+
       const averageTicket = patientsAttended > 0 ? totalRevenue / patientsAttended : 0;
 
       // Calcular cambios vs periodo anterior
@@ -74,14 +113,14 @@ export function useFinancialMetrics(period: {
       let ticketChange = 0;
 
       if (period.previousStartDate && period.previousEndDate) {
-        const { data: previousPayments } = await supabase
-          .from("payments")
+        const { data: previousPayments } = await api
+          .from<Payment>("payments")
           .select("amount")
           .gte("payment_date", period.previousStartDate)
           .lte("payment_date", period.previousEndDate);
 
-        const { data: previousAppointments } = await supabase
-          .from("appointments")
+        const { data: previousAppointments } = await api
+          .from<AppointmentBasic>("appointments")
           .select("id, patient_id")
           .gte("appointment_date", period.previousStartDate)
           .lte("appointment_date", period.previousEndDate)
@@ -119,28 +158,28 @@ export function useDoctorProductivity(period: { startDate: string; endDate: stri
     queryKey: ["doctor-productivity", period],
     queryFn: async (): Promise<DoctorProductivity[]> => {
       // Obtener citas completadas por doctor
-      const { data: appointments } = await supabase
-        .from("appointments")
+      const { data: appointments } = await api
+        .from<AppointmentBasic>("appointments")
         .select("doctor_id, id")
         .gte("appointment_date", period.startDate)
         .lte("appointment_date", period.endDate)
         .eq("status", "completed");
 
       // Obtener perfiles de doctores
-      const { data: profiles } = await supabase
-        .from("profiles")
+      const { data: profiles } = await api
+        .from<Profile>("profiles")
         .select("user_id, full_name");
 
       // Obtener pagos del periodo
-      const { data: payments } = await supabase
-        .from("payments")
+      const { data: payments } = await api
+        .from<Payment>("payments")
         .select("amount, invoice_id")
         .gte("payment_date", period.startDate)
         .lte("payment_date", period.endDate);
 
       // Obtener facturas para mapear con citas
-      const { data: invoices } = await supabase
-        .from("invoices")
+      const { data: invoices } = await api
+        .from<Invoice>("invoices")
         .select("id, created_by")
         .gte("issue_date", period.startDate)
         .lte("issue_date", period.endDate);
@@ -153,7 +192,7 @@ export function useDoctorProductivity(period: { startDate: string; endDate: stri
       // Ingresos por doctor (basado en quien creó la factura)
       const revenueByDoctor: Record<string, number> = {};
       const invoiceCreatorMap: Record<string, string> = {};
-      
+
       invoices?.forEach((inv) => {
         if (inv.created_by) {
           invoiceCreatorMap[inv.id] = inv.created_by;
@@ -184,7 +223,7 @@ export function useDoctorProductivity(period: { startDate: string; endDate: stri
       doctorIds.forEach((doctorId) => {
         const procedures = proceduresByDoctor[doctorId] || 0;
         const revenue = revenueByDoctor[doctorId] || 0;
-        
+
         // Eficiencia basada en procedimientos vs promedio
         const avgProcedures = appointments?.length ? appointments.length / doctorIds.size : 0;
         const efficiency = avgProcedures > 0 ? Math.min(100, Math.round((procedures / avgProcedures) * 85)) : 0;
@@ -210,12 +249,9 @@ export function useServiceBreakdown(period: { startDate: string; endDate: string
     queryKey: ["service-breakdown", period],
     queryFn: async (): Promise<ServiceBreakdown[]> => {
       // Obtener items de facturas con tratamientos
-      const { data: items } = await supabase
-        .from("invoice_items")
-        .select(`
-          total,
-          treatment:treatments(category)
-        `)
+      const { data: items } = await api
+        .from<InvoiceItem>("invoice_items")
+        .select("total,treatment:treatments(category)")
         .gte("created_at", period.startDate)
         .lte("created_at", period.endDate);
 
@@ -255,14 +291,14 @@ export function useMonthlyRevenue(year: number) {
       const startDate = `${year}-01-01`;
       const endDate = `${year}-12-31`;
 
-      const { data: payments } = await supabase
-        .from("payments")
+      const { data: payments } = await api
+        .from<Payment>("payments")
         .select("amount, payment_date")
         .gte("payment_date", startDate)
         .lte("payment_date", endDate);
 
-      const { data: appointments } = await supabase
-        .from("appointments")
+      const { data: appointments } = await api
+        .from<AppointmentBasic>("appointments")
         .select("id, appointment_date")
         .gte("appointment_date", startDate)
         .lte("appointment_date", endDate)
@@ -272,7 +308,7 @@ export function useMonthlyRevenue(year: number) {
 
       // Inicializar todos los meses
       const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-      months.forEach((month, i) => {
+      months.forEach((_, i) => {
         monthlyData[String(i + 1).padStart(2, "0")] = { revenue: 0, procedures: 0 };
       });
 
@@ -290,7 +326,7 @@ export function useMonthlyRevenue(year: number) {
         }
       });
 
-      return Object.entries(monthlyData).map(([monthNum, data], index) => ({
+      return Object.entries(monthlyData).map(([_, data], index) => ({
         month: months[index],
         revenue: data.revenue,
         procedures: data.procedures,
@@ -306,8 +342,8 @@ export function useQuickStats(period: { startDate: string; endDate: string }) {
     queryKey: ["quick-stats", period],
     queryFn: async () => {
       // Tiempo promedio por cita
-      const { data: appointments } = await supabase
-        .from("appointments")
+      const { data: appointments } = await api
+        .from<AppointmentBasic>("appointments")
         .select("start_time, end_time")
         .gte("appointment_date", period.startDate)
         .lte("appointment_date", period.endDate)
@@ -322,9 +358,8 @@ export function useQuickStats(period: { startDate: string; endDate: string }) {
       const avgAppointmentMinutes = appointments?.length ? Math.round(totalMinutes / appointments.length) : 0;
 
       // Tasa de ocupación (citas completadas / slots disponibles)
-      // Asumiendo 8 horas de trabajo, slots de 30 min = 16 slots/día
-      const { data: clinicSettings } = await supabase
-        .from("clinic_settings")
+      const { data: clinicSettings } = await api
+        .from<ClinicSettingsBasic>("clinic_settings")
         .select("opening_time, closing_time, working_days")
         .single();
 
@@ -337,8 +372,8 @@ export function useQuickStats(period: { startDate: string; endDate: string }) {
       const occupancyRate = totalSlots > 0 ? Math.min(100, Math.round(((appointments?.length || 0) / totalSlots) * 100)) : 0;
 
       // Pacientes recurrentes
-      const { data: allPatientAppointments } = await supabase
-        .from("appointments")
+      const { data: allPatientAppointments } = await api
+        .from<AppointmentBasic>("appointments")
         .select("patient_id")
         .eq("status", "completed");
 

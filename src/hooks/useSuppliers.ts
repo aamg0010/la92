@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/apiClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface Supplier {
   id: string;
@@ -101,11 +102,11 @@ export function useSuppliers() {
   return useQuery({
     queryKey: ["suppliers"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("suppliers")
+      const { data, error } = await api
+        .from<Supplier>("suppliers")
         .select("*")
-        .order("name", { ascending: true });
-      
+        .order("name");
+
       if (error) throw error;
       return data as Supplier[];
     },
@@ -117,12 +118,12 @@ export function useSupplier(id: string | null) {
     queryKey: ["supplier", id],
     queryFn: async () => {
       if (!id) return null;
-      const { data, error } = await supabase
-        .from("suppliers")
+      const { data, error } = await api
+        .from<Supplier>("suppliers")
         .select("*")
         .eq("id", id)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data as Supplier | null;
     },
@@ -136,12 +137,12 @@ export function useCreateSupplier() {
 
   return useMutation({
     mutationFn: async (supplier: SupplierInsert) => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("suppliers")
         .insert(supplier)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -168,13 +169,13 @@ export function useUpdateSupplier() {
 
   return useMutation({
     mutationFn: async ({ id, ...supplier }: SupplierUpdate & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("suppliers")
         .update(supplier)
         .eq("id", id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -202,11 +203,11 @@ export function useDeleteSupplier() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await api
         .from("suppliers")
         .delete()
         .eq("id", id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -232,14 +233,11 @@ export function useSupplierProducts(supplierId: string | null) {
     queryKey: ["supplier-products", supplierId],
     queryFn: async () => {
       if (!supplierId) return [];
-      const { data, error } = await supabase
-        .from("supplier_products")
-        .select(`
-          *,
-          inventory_item:inventory_items(id, name, unit)
-        `)
+      const { data, error } = await api
+        .from<SupplierProduct>("supplier_products")
+        .select("*,inventory_item:inventory_items(id,name,unit)")
         .eq("supplier_id", supplierId);
-      
+
       if (error) throw error;
       return data as SupplierProduct[];
     },
@@ -253,12 +251,12 @@ export function useAddSupplierProduct() {
 
   return useMutation({
     mutationFn: async (product: Omit<SupplierProduct, 'id' | 'created_at' | 'updated_at' | 'inventory_item'>) => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("supplier_products")
         .insert(product)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -285,11 +283,11 @@ export function useDeleteSupplierProduct() {
 
   return useMutation({
     mutationFn: async ({ id, supplierId }: { id: string; supplierId: string }) => {
-      const { error } = await supabase
+      const { error } = await api
         .from("supplier_products")
         .delete()
         .eq("id", id);
-      
+
       if (error) throw error;
       return supplierId;
     },
@@ -315,14 +313,11 @@ export function usePurchaseOrders() {
   return useQuery({
     queryKey: ["purchase-orders"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("purchase_orders")
-        .select(`
-          *,
-          supplier:suppliers(id, name)
-        `)
+      const { data, error } = await api
+        .from<PurchaseOrder>("purchase_orders")
+        .select("*,supplier:suppliers(id,name)")
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       return data as PurchaseOrder[];
     },
@@ -334,18 +329,23 @@ export function usePurchaseOrder(id: string | null) {
     queryKey: ["purchase-order", id],
     queryFn: async () => {
       if (!id) return null;
-      const { data, error } = await supabase
-        .from("purchase_orders")
-        .select(`
-          *,
-          supplier:suppliers(*),
-          items:purchase_order_items(*)
-        `)
+      const { data: order, error: orderError } = await api
+        .from<PurchaseOrder>("purchase_orders")
+        .select("*,supplier:suppliers(*)")
         .eq("id", id)
         .maybeSingle();
-      
-      if (error) throw error;
-      return data as PurchaseOrder | null;
+
+      if (orderError) throw orderError;
+      if (!order) return null;
+
+      const { data: items, error: itemsError } = await api
+        .from<PurchaseOrderItem>("purchase_order_items")
+        .select("*")
+        .eq("purchase_order_id", id);
+
+      if (itemsError) throw itemsError;
+
+      return { ...order, items } as PurchaseOrder;
     },
     enabled: !!id,
   });
@@ -370,13 +370,13 @@ export function useCreatePurchaseOrder() {
     }) => {
       // Generate order number
       const orderNumber = `PO-${Date.now().toString(36).toUpperCase()}`;
-      
+
       // Calculate totals
       const subtotal = order.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
       const total = subtotal;
 
       // Create order
-      const { data: orderData, error: orderError } = await supabase
+      const { data: orderData, error: orderError } = await api
         .from("purchase_orders")
         .insert({
           order_number: orderNumber,
@@ -388,12 +388,12 @@ export function useCreatePurchaseOrder() {
         })
         .select()
         .single();
-      
+
       if (orderError) throw orderError;
 
       // Create order items
       const itemsToInsert = order.items.map(item => ({
-        purchase_order_id: orderData.id,
+        purchase_order_id: (orderData as { id: string }).id,
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
@@ -402,10 +402,10 @@ export function useCreatePurchaseOrder() {
         supplier_product_id: item.supplier_product_id,
       }));
 
-      const { error: itemsError } = await supabase
+      const { error: itemsError } = await api
         .from("purchase_order_items")
         .insert(itemsToInsert);
-      
+
       if (itemsError) throw itemsError;
 
       return orderData;
@@ -433,13 +433,13 @@ export function useUpdatePurchaseOrderStatus() {
 
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("purchase_orders")
         .update({ status })
         .eq("id", id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -466,14 +466,11 @@ export function useStockAlerts() {
   return useQuery({
     queryKey: ["stock-alerts"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stock_alerts")
-        .select(`
-          *,
-          inventory_item:inventory_items(id, name, unit, sku)
-        `)
+      const { data, error } = await api
+        .from<StockAlert>("stock_alerts")
+        .select("*,inventory_item:inventory_items(id,name,unit,sku)")
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       return data as StockAlert[];
     },
@@ -484,15 +481,12 @@ export function usePendingStockAlerts() {
   return useQuery({
     queryKey: ["stock-alerts", "pending"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stock_alerts")
-        .select(`
-          *,
-          inventory_item:inventory_items(id, name, unit, sku)
-        `)
+      const { data, error } = await api
+        .from<StockAlert>("stock_alerts")
+        .select("*,inventory_item:inventory_items(id,name,unit,sku)")
         .eq("status", "pending")
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       return data as StockAlert[];
     },
@@ -502,12 +496,11 @@ export function usePendingStockAlerts() {
 export function useAcknowledgeStockAlert() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("stock_alerts")
         .update({
           status: "acknowledged",
@@ -517,7 +510,7 @@ export function useAcknowledgeStockAlert() {
         .eq("id", id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -544,7 +537,7 @@ export function useResolveStockAlert() {
 
   return useMutation({
     mutationFn: async ({ id, notes }: { id: string; notes?: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("stock_alerts")
         .update({
           status: "resolved",
@@ -554,7 +547,7 @@ export function useResolveStockAlert() {
         .eq("id", id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },

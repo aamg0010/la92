@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import logoImage from "@/assets/logo-la92.png";
+import dentryLogo from "@/assets/logo-dentry-dark.png";
 
 interface LogoProps {
   className?: string;
@@ -10,18 +10,18 @@ interface LogoProps {
 
 export function Logo({ className, size = "md", variant = "full", showText = true }: LogoProps) {
   const sizes = {
-    sm: { icon: 32, text: "text-sm" },
-    md: { icon: 40, text: "text-base" },
-    lg: { icon: 56, text: "text-lg" },
-    xl: { icon: 72, text: "text-xl" },
+    sm: { icon: 40, text: "text-sm" },
+    md: { icon: 56, text: "text-base" },
+    lg: { icon: 72, text: "text-lg" },
+    xl: { icon: 96, text: "text-xl" },
   };
 
   const { icon: iconSize, text: textSize } = sizes[size];
 
   const LogoIcon = () => (
     <img
-      src={logoImage}
-      alt="Consultorio Odontológico La 92"
+      src={dentryLogo}
+      alt="dentry!"
       width={iconSize}
       height={iconSize}
       className="flex-shrink-0 rounded-lg object-contain"
@@ -38,9 +38,9 @@ export function Logo({ className, size = "md", variant = "full", showText = true
       {showText && (
         <div className="flex flex-col">
           <span className={cn("font-semibold text-foreground leading-tight", textSize)}>
-            Consultorio La 92
+            dentry!
           </span>
-          <span className="text-xs text-muted-foreground">Odontología Integral & Estética</span>
+          <span className="text-xs text-muted-foreground">Tu clínica, un paso adelante</span>
         </div>
       )}
     </div>
@@ -52,13 +52,13 @@ export function LogoCompact({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <img
-        src={logoImage}
-        alt="La 92"
-        className="w-10 h-10 rounded-xl object-contain"
+        src={dentryLogo}
+        alt="dentry!"
+        className="w-14 h-14 rounded-xl object-contain"
       />
       <div>
-        <span className="font-semibold text-foreground text-lg block leading-tight">La 92</span>
-        <span className="text-xs text-muted-foreground">Odontología</span>
+        <span className="font-semibold text-foreground text-lg block leading-tight">dentry!</span>
+        <span className="text-xs text-muted-foreground">Tu clínica, un paso adelante</span>
       </div>
     </div>
   );
@@ -67,21 +67,21 @@ export function LogoCompact({ className }: { className?: string }) {
 // Dark variant for sidebar
 export function LogoDark({ className, size = "md" }: { className?: string; size?: "sm" | "md" | "lg" }) {
   const sizes = {
-    sm: "w-8 h-8",
-    md: "w-10 h-10",
-    lg: "w-12 h-12",
+    sm: "w-10 h-10",
+    md: "w-14 h-14",
+    lg: "w-16 h-16",
   };
 
   return (
     <div className={cn("flex items-center gap-3", className)}>
       <img
-        src={logoImage}
-        alt="La 92"
+        src={dentryLogo}
+        alt="dentry!"
         className={cn("rounded-xl object-contain", sizes[size])}
       />
       <div>
-        <span className="font-semibold text-sidebar-foreground text-lg block leading-tight">La 92</span>
-        <span className="text-xs text-sidebar-foreground/70">Odontología</span>
+        <span className="font-semibold text-sidebar-foreground text-lg block leading-tight">dentry!</span>
+        <span className="text-xs text-sidebar-foreground/70">Tu clínica, un paso adelante</span>
       </div>
     </div>
   );

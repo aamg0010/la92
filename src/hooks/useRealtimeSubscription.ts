@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 type TableName =
   | "patients" | "appointments" | "treatments" | "treatment_materials"
@@ -16,63 +15,53 @@ type TableName =
 
 /**
  * Subscribe to realtime changes on a table and auto-invalidate related queries.
+ * NOTE: Realtime is not available with PostgREST. Using polling instead.
  * @param table - The table to subscribe to
  * @param queryKeys - Query keys to invalidate when changes occur
+ * @param pollingInterval - Optional polling interval in ms (default: 30000)
  */
 export function useRealtimeSubscription(
   table: TableName,
-  queryKeys: string[][]
+  queryKeys: string[][],
+  pollingInterval: number = 30000
 ) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`realtime-${table}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table },
-        () => {
-          queryKeys.forEach((key) => {
-            queryClient.invalidateQueries({ queryKey: key });
-          });
-        }
-      )
-      .subscribe();
+    // Polling fallback since PostgREST doesn't support realtime
+    const interval = setInterval(() => {
+      queryKeys.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
+    }, pollingInterval);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [table, queryClient, queryKeys]);
+  }, [table, queryClient, queryKeys, pollingInterval]);
 }
 
 /**
  * Subscribe to multiple tables at once.
+ * NOTE: Using polling instead of realtime subscriptions.
  */
 export function useRealtimeMultiSubscription(
-  subscriptions: { table: TableName; queryKeys: string[][] }[]
+  subscriptions: { table: TableName; queryKeys: string[][] }[],
+  pollingInterval: number = 30000
 ) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const channels = subscriptions.map(({ table, queryKeys }) => {
-      return supabase
-        .channel(`realtime-multi-${table}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table },
-          () => {
-            queryKeys.forEach((key) => {
-              queryClient.invalidateQueries({ queryKey: key });
-            });
-          }
-        )
-        .subscribe();
-    });
+    const interval = setInterval(() => {
+      subscriptions.forEach(({ queryKeys }) => {
+        queryKeys.forEach((key) => {
+          queryClient.invalidateQueries({ queryKey: key });
+        });
+      });
+    }, pollingInterval);
 
     return () => {
-      channels.forEach((channel) => {
-        supabase.removeChannel(channel);
-      });
+      clearInterval(interval);
     };
-  }, [subscriptions, queryClient]);
+  }, [subscriptions, queryClient, pollingInterval]);
 }

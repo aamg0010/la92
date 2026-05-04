@@ -52,7 +52,7 @@ import {
   type DentalLab 
 } from "@/hooks/useDentalLabs";
 import { useSearchPatients } from "@/hooks/usePatients";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 const workTypes = [
@@ -113,6 +113,7 @@ const getPriorityBadge = (priority: string | null) => {
 
 export default function Laboratorios() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [patientSearch, setPatientSearch] = useState("");
@@ -180,8 +181,6 @@ export default function Laboratorios() {
       return;
     }
 
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({
         title: "No autenticado",

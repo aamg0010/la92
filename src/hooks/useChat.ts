@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -62,14 +62,11 @@ export function useConversations() {
     queryKey: ["conversations", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      
+
       // Get conversations with participants
-      const { data: convs, error } = await supabase
-        .from("conversations")
-        .select(`
-          *,
-          conversation_participants (*)
-        `)
+      const { data: convs, error } = await api
+        .from<Conversation>("conversations")
+        .select("*,conversation_participants(*)")
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -77,18 +74,18 @@ export function useConversations() {
       // Fetch profiles for all participants
       const allUserIds = new Set<string>();
       (convs || []).forEach((conv) => {
-        conv.conversation_participants?.forEach((p: { user_id: string }) => {
+        (conv.conversation_participants as ConversationParticipant[] || [])?.forEach((p) => {
           allUserIds.add(p.user_id);
         });
       });
 
-      const { data: profiles } = await supabase
+      const { data: profiles } = await api
         .from("profiles")
-        .select("user_id, full_name, avatar_url")
+        .select("user_id,full_name,avatar_url")
         .in("user_id", Array.from(allUserIds));
 
       const profileMap = new Map<string, { full_name: string; avatar_url: string | null }>();
-      profiles?.forEach((p) => {
+      (profiles as { user_id: string; full_name: string; avatar_url: string | null }[])?.forEach((p) => {
         profileMap.set(p.user_id, { full_name: p.full_name, avatar_url: p.avatar_url });
       });
 
@@ -96,41 +93,36 @@ export function useConversations() {
       const conversationsWithMeta = await Promise.all(
         (convs || []).map(async (conv) => {
           // Map participants with profiles
-          const participantsWithProfiles = conv.conversation_participants?.map(
-            (p: { user_id: string; id: string; conversation_id: string; joined_at: string; last_read_at: string | null; is_admin: boolean }) => ({
+          const participantsWithProfiles = (conv.conversation_participants as ConversationParticipant[] || [])?.map(
+            (p) => ({
               ...p,
               profile: profileMap.get(p.user_id) || { full_name: "Usuario", avatar_url: null },
             })
           ) || [];
 
-          const { data: lastMsg } = await supabase
-            .from("messages")
+          const { data: messages } = await api
+            .from<Message>("messages")
             .select("*")
             .eq("conversation_id", conv.id)
             .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .limit(1);
+
+          const lastMsg = messages?.[0];
 
           const participant = participantsWithProfiles.find(
-            (p: ConversationParticipant) => p.user_id === user.id
+            (p) => p.user_id === user.id
           );
 
+          // Simple unread count (messages after last_read_at)
           let unreadCount = 0;
           if (participant?.last_read_at) {
-            const { count } = await supabase
-              .from("messages")
-              .select("*", { count: "exact", head: true })
+            const { data: unreadMessages } = await api
+              .from<Message>("messages")
+              .select("id")
               .eq("conversation_id", conv.id)
               .gt("created_at", participant.last_read_at)
               .neq("sender_id", user.id);
-            unreadCount = count || 0;
-          } else {
-            const { count } = await supabase
-              .from("messages")
-              .select("*", { count: "exact", head: true })
-              .eq("conversation_id", conv.id)
-              .neq("sender_id", user.id);
-            unreadCount = count || 0;
+            unreadCount = unreadMessages?.length || 0;
           }
 
           return {
@@ -145,6 +137,7 @@ export function useConversations() {
       return conversationsWithMeta as Conversation[];
     },
     enabled: !!user,
+    refetchInterval: 30000, // Poll every 30 seconds since we don't have realtime
   });
 
   const createDirectConversation = useMutation({
@@ -152,23 +145,23 @@ export function useConversations() {
       if (!user) throw new Error("No autenticado");
 
       // Check if conversation already exists
-      const { data: existing } = await supabase
-        .from("conversation_participants")
+      const { data: existing } = await api
+        .from<ConversationParticipant>("conversation_participants")
         .select("conversation_id")
         .eq("user_id", user.id);
 
       if (existing) {
         for (const p of existing) {
-          const { data: conv } = await supabase
-            .from("conversations")
-            .select("*, conversation_participants(*)")
+          const { data: conv } = await api
+            .from<Conversation>("conversations")
+            .select("*,conversation_participants(*)")
             .eq("id", p.conversation_id)
             .eq("is_group", false)
             .single();
 
-          if (conv?.conversation_participants?.length === 2) {
-            const hasTarget = conv.conversation_participants.some(
-              (cp: { user_id: string }) => cp.user_id === targetUserId
+          if ((conv?.conversation_participants as ConversationParticipant[])?.length === 2) {
+            const hasTarget = (conv.conversation_participants as ConversationParticipant[]).some(
+              (cp) => cp.user_id === targetUserId
             );
             if (hasTarget) return conv;
           }
@@ -176,7 +169,7 @@ export function useConversations() {
       }
 
       // Create new conversation
-      const { data: newConv, error: convError } = await supabase
+      const { data: newConv, error: convError } = await api
         .from("conversations")
         .insert({ created_by: user.id, is_group: false })
         .select()
@@ -185,11 +178,11 @@ export function useConversations() {
       if (convError) throw convError;
 
       // Add both participants
-      const { error: partError } = await supabase
+      const { error: partError } = await api
         .from("conversation_participants")
         .insert([
-          { conversation_id: newConv.id, user_id: user.id, is_admin: true },
-          { conversation_id: newConv.id, user_id: targetUserId },
+          { conversation_id: (newConv as { id: string }).id, user_id: user.id, is_admin: true },
+          { conversation_id: (newConv as { id: string }).id, user_id: targetUserId },
         ]);
 
       if (partError) throw partError;
@@ -212,7 +205,7 @@ export function useConversations() {
     mutationFn: async ({ name, userIds }: { name: string; userIds: string[] }) => {
       if (!user) throw new Error("No autenticado");
 
-      const { data: newConv, error: convError } = await supabase
+      const { data: newConv, error: convError } = await api
         .from("conversations")
         .insert({ name, created_by: user.id, is_group: true })
         .select()
@@ -221,14 +214,14 @@ export function useConversations() {
       if (convError) throw convError;
 
       const participants = [
-        { conversation_id: newConv.id, user_id: user.id, is_admin: true },
+        { conversation_id: (newConv as { id: string }).id, user_id: user.id, is_admin: true },
         ...userIds.map((uid) => ({
-          conversation_id: newConv.id,
+          conversation_id: (newConv as { id: string }).id,
           user_id: uid,
         })),
       ];
 
-      const { error: partError } = await supabase
+      const { error: partError } = await api
         .from("conversation_participants")
         .insert(participants);
 
@@ -268,11 +261,11 @@ export function useMessages(conversationId: string | null) {
     queryFn: async () => {
       if (!conversationId) return [];
 
-      const { data, error } = await supabase
-        .from("messages")
+      const { data, error } = await api
+        .from<Message>("messages")
         .select("*")
         .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
+        .order("created_at");
 
       if (error) throw error;
 
@@ -280,13 +273,13 @@ export function useMessages(conversationId: string | null) {
       const senderIds = new Set<string>();
       data?.forEach((m) => senderIds.add(m.sender_id));
 
-      const { data: profiles } = await supabase
+      const { data: profiles } = await api
         .from("profiles")
-        .select("user_id, full_name, avatar_url")
+        .select("user_id,full_name,avatar_url")
         .in("user_id", Array.from(senderIds));
 
       const profileMap = new Map<string, { full_name: string; avatar_url: string | null }>();
-      profiles?.forEach((p) => {
+      (profiles as { user_id: string; full_name: string; avatar_url: string | null }[])?.forEach((p) => {
         profileMap.set(p.user_id, { full_name: p.full_name, avatar_url: p.avatar_url });
       });
 
@@ -296,33 +289,8 @@ export function useMessages(conversationId: string | null) {
       })) as Message[];
     },
     enabled: !!conversationId,
+    refetchInterval: 5000, // Poll every 5 seconds for new messages
   });
-
-  // Subscribe to new messages
-  useEffect(() => {
-    if (!conversationId) return;
-
-    const channel = supabase
-      .channel(`messages:${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
-          queryClient.invalidateQueries({ queryKey: ["conversations"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [conversationId, queryClient]);
 
   const sendMessage = useMutation({
     mutationFn: async ({
@@ -340,24 +308,17 @@ export function useMessages(conversationId: string | null) {
       let messageType = "text";
 
       if (file) {
-        const filePath = `${user.id}/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from("chat-files")
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from("chat-files")
-          .getPublicUrl(filePath);
-
-        fileUrl = urlData.publicUrl;
+        // TODO: Implement file upload for PostgREST
+        toast({
+          title: "Nota",
+          description: "La subida de archivos requiere configuración adicional.",
+        });
         fileName = file.name;
         fileSize = file.size;
         messageType = file.type.startsWith("image/") ? "image" : "file";
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("messages")
         .insert({
           conversation_id: conversationId,
@@ -390,7 +351,7 @@ export function useMessages(conversationId: string | null) {
   const markAsRead = useCallback(async () => {
     if (!user || !conversationId) return;
 
-    await supabase
+    await api
       .from("conversation_participants")
       .update({ last_read_at: new Date().toISOString() })
       .eq("conversation_id", conversationId)
@@ -414,8 +375,8 @@ export function usePresence() {
   const { data: presenceMap = {} } = useQuery({
     queryKey: ["presence"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_presence")
+      const { data, error } = await api
+        .from<UserPresence>("user_presence")
         .select("*");
 
       if (error) throw error;
@@ -434,7 +395,7 @@ export function usePresence() {
     if (!user) return;
 
     const updatePresence = async (isOnline: boolean) => {
-      await supabase.from("user_presence").upsert({
+      await api.from("user_presence").upsert({
         user_id: user.id,
         is_online: isOnline,
         last_seen: new Date().toISOString(),
@@ -455,28 +416,6 @@ export function usePresence() {
     };
   }, [user]);
 
-  // Subscribe to presence changes
-  useEffect(() => {
-    const channel = supabase
-      .channel("presence-updates")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "user_presence",
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["presence"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
-
   return { presenceMap };
 }
 
@@ -486,12 +425,9 @@ export function useStaffUsers() {
   return useQuery({
     queryKey: ["staff-users"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("profiles")
-        .select(`
-          *,
-          user_roles!inner (role)
-        `)
+        .select("*,user_roles(role)")
         .neq("user_id", user?.id || "");
 
       if (error) throw error;

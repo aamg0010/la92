@@ -29,6 +29,11 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
+  // Superadmin bypasses all role restrictions
+  if (user.is_superadmin) {
+    return <>{children}</>;
+  }
+
   // Check role-based access
   if (role && !hasPermission(role, location.pathname)) {
     return (

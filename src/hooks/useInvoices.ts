@@ -1,10 +1,27 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/apiClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
-export type Invoice = Tables<"invoices"> & {
+export interface Invoice {
+  id: string;
+  invoice_number: string;
+  patient_id: string;
+  issue_date: string;
+  due_date: string | null;
+  subtotal: number;
+  discount: number | null;
+  tax_amount: number | null;
+  total: number;
+  status: string;
+  notes: string | null;
+  cufe: string | null;
+  dian_status: string | null;
+  dian_response: string | null;
+  rips_data: unknown | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
   patient?: {
     id: string;
     first_name: string;
@@ -14,11 +31,21 @@ export type Invoice = Tables<"invoices"> & {
     email: string | null;
   } | null;
   items?: InvoiceItem[];
-};
+}
 
-export type InvoiceItem = Tables<"invoice_items"> & {
+export interface InvoiceItem {
+  id: string;
+  invoice_id: string;
+  treatment_id: string | null;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  discount: number | null;
+  tax_rate: number | null;
+  total: number;
+  created_at: string;
   treatment?: { id: string; name: string; code: string } | null;
-};
+}
 
 // ============ INVOICES ============
 
@@ -31,12 +58,9 @@ export function useInvoices(filters?: {
   return useQuery({
     queryKey: ["invoices", filters],
     queryFn: async () => {
-      let query = supabase
-        .from("invoices")
-        .select(`
-          *,
-          patient:patients(id, first_name, last_name, document_number, phone, email)
-        `)
+      let query = api
+        .from<Invoice>("invoices")
+        .select("*,patient:patients(id,first_name,last_name,document_number,phone,email)")
         .order("issue_date", { ascending: false });
 
       if (filters?.status) {
@@ -65,23 +89,17 @@ export function useInvoice(id: string | null) {
     queryFn: async () => {
       if (!id) return null;
 
-      const { data: invoice, error: invoiceError } = await supabase
-        .from("invoices")
-        .select(`
-          *,
-          patient:patients(id, first_name, last_name, document_number, phone, email)
-        `)
+      const { data: invoice, error: invoiceError } = await api
+        .from<Invoice>("invoices")
+        .select("*,patient:patients(id,first_name,last_name,document_number,phone,email)")
         .eq("id", id)
         .single();
 
       if (invoiceError) throw invoiceError;
 
-      const { data: items, error: itemsError } = await supabase
-        .from("invoice_items")
-        .select(`
-          *,
-          treatment:treatments(id, name, code)
-        `)
+      const { data: items, error: itemsError } = await api
+        .from<InvoiceItem>("invoice_items")
+        .select("*,treatment:treatments(id,name,code)")
         .eq("invoice_id", id);
 
       if (itemsError) throw itemsError;
@@ -98,10 +116,10 @@ export function useCreateInvoice() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (invoice: Omit<TablesInsert<"invoices">, "created_by" | "invoice_number">) => {
+    mutationFn: async (invoice: Partial<Invoice>) => {
       // Generar número de factura
-      const { data: lastInvoice } = await supabase
-        .from("invoices")
+      const { data: lastInvoice } = await api
+        .from<Invoice>("invoices")
         .select("invoice_number")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -112,7 +130,7 @@ export function useCreateInvoice() {
         : 0;
       const invoiceNumber = `FEV-${String(lastNumber + 1).padStart(6, "0")}`;
 
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from("invoices")
         .insert({
           ...invoice,
@@ -147,8 +165,8 @@ export function useUpdateInvoice() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & TablesUpdate<"invoices">) => {
-      const { data, error } = await supabase
+    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Invoice>) => {
+      const { data, error } = await api
         .from("invoices")
         .update(updates)
         .eq("id", id)
@@ -183,8 +201,8 @@ export function useAddInvoiceItem() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (item: TablesInsert<"invoice_items">) => {
-      const { data, error } = await supabase
+    mutationFn: async (item: Partial<InvoiceItem>) => {
+      const { data, error } = await api
         .from("invoice_items")
         .insert(item)
         .select()
@@ -193,7 +211,9 @@ export function useAddInvoiceItem() {
       if (error) throw error;
 
       // Actualizar totales de la factura
-      await recalculateInvoiceTotals(item.invoice_id);
+      if (item.invoice_id) {
+        await recalculateInvoiceTotals(item.invoice_id);
+      }
 
       return data;
     },
@@ -217,7 +237,7 @@ export function useRemoveInvoiceItem() {
 
   return useMutation({
     mutationFn: async ({ id, invoiceId }: { id: string; invoiceId: string }) => {
-      const { error } = await supabase
+      const { error } = await api
         .from("invoice_items")
         .delete()
         .eq("id", id);
@@ -244,22 +264,23 @@ export function useRemoveInvoiceItem() {
 }
 
 async function recalculateInvoiceTotals(invoiceId: string) {
-  const { data: items } = await supabase
-    .from("invoice_items")
-    .select("quantity, unit_price, discount, tax_rate, total")
+  const { data: items } = await api
+    .from<InvoiceItem>("invoice_items")
+    .select("quantity,unit_price,discount,tax_rate,total")
     .eq("invoice_id", invoiceId);
 
   if (!items) return;
 
-  const subtotal = items.reduce((acc, item) => acc + Number(item.unit_price) * item.quantity, 0);
-  const discount = items.reduce((acc, item) => acc + (Number(item.discount) || 0), 0);
-  const taxAmount = items.reduce(
+  const itemList = items as InvoiceItem[];
+  const subtotal = itemList.reduce((acc, item) => acc + Number(item.unit_price) * item.quantity, 0);
+  const discount = itemList.reduce((acc, item) => acc + (Number(item.discount) || 0), 0);
+  const taxAmount = itemList.reduce(
     (acc, item) => acc + (Number(item.unit_price) * item.quantity * (Number(item.tax_rate) || 0)) / 100,
     0
   );
   const total = subtotal - discount + taxAmount;
 
-  await supabase
+  await api
     .from("invoices")
     .update({ subtotal, discount, tax_amount: taxAmount, total })
     .eq("id", invoiceId);
@@ -271,7 +292,7 @@ export function useInvoiceStats(period?: { startDate: string; endDate: string })
   return useQuery({
     queryKey: ["invoice-stats", period],
     queryFn: async () => {
-      let query = supabase.from("invoices").select("total, status, issue_date");
+      let query = api.from<Invoice>("invoices").select("total,status,issue_date");
 
       if (period?.startDate) {
         query = query.gte("issue_date", period.startDate);
@@ -283,18 +304,19 @@ export function useInvoiceStats(period?: { startDate: string; endDate: string })
       const { data, error } = await query;
       if (error) throw error;
 
-      const totalInvoiced = data.reduce((acc, inv) => acc + Number(inv.total), 0);
-      const validatedCount = data.filter((inv) => inv.status === "validated").length;
-      const pendingCount = data.filter((inv) => inv.status === "pending" || inv.status === "draft").length;
-      const rejectedCount = data.filter((inv) => inv.status === "rejected").length;
+      const invoices = data as Invoice[];
+      const totalInvoiced = invoices.reduce((acc, inv) => acc + Number(inv.total), 0);
+      const validatedCount = invoices.filter((inv) => inv.status === "validated").length;
+      const pendingCount = invoices.filter((inv) => inv.status === "pending" || inv.status === "draft").length;
+      const rejectedCount = invoices.filter((inv) => inv.status === "rejected").length;
 
       return {
         totalInvoiced,
-        totalCount: data.length,
+        totalCount: invoices.length,
         validatedCount,
         pendingCount,
         rejectedCount,
-        validationRate: data.length > 0 ? Math.round((validatedCount / data.length) * 100) : 0,
+        validationRate: invoices.length > 0 ? Math.round((validatedCount / invoices.length) * 100) : 0,
       };
     },
   });

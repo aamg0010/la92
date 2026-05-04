@@ -2,14 +2,16 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, Settings2, Save, Moon, Sun, Monitor, Bell, Volume2 } from "lucide-react";
+import { Loader2, Settings2, Save, Moon, Sun, Monitor, Bell, Volume2, Check } from "lucide-react";
 import { useUserPreferences, useUpdateUserPreferences } from "@/hooks/useSettings";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useTheme } from "next-themes";
 
 export function PreferencesSettings() {
   const { data: preferences, isLoading } = useUserPreferences();
   const updatePreferences = useUpdateUserPreferences();
+  const { theme: currentTheme, setTheme } = useTheme();
 
   const [formData, setFormData] = useState({
     theme: "system",
@@ -30,8 +32,17 @@ export function PreferencesSettings() {
         sound_enabled: preferences.sound_enabled ?? true,
         compact_mode: preferences.compact_mode ?? false,
       });
+      // Aplicar tema guardado
+      if (preferences.theme) {
+        setTheme(preferences.theme);
+      }
     }
-  }, [preferences]);
+  }, [preferences, setTheme]);
+
+  const handleThemeChange = (newTheme: string) => {
+    setFormData({ ...formData, theme: newTheme });
+    setTheme(newTheme); // Aplicar inmediatamente
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +75,7 @@ export function PreferencesSettings() {
               <Label>Tema de la aplicación</Label>
               <RadioGroup
                 value={formData.theme}
-                onValueChange={(value) => setFormData({ ...formData, theme: value })}
+                onValueChange={handleThemeChange}
                 className="grid grid-cols-3 gap-4"
               >
                 <div>

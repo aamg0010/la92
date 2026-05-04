@@ -2,14 +2,14 @@ import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search,
   Plus,
   Filter,
-  MoreVertical,
+  Edit,
   Phone,
   Mail,
   Calendar,
@@ -19,6 +19,7 @@ import {
   UserPlus,
   ClipboardList,
   User,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePatients, type Patient } from "@/hooks/usePatients";
@@ -28,16 +29,19 @@ import { NewPatientDialog } from "@/components/patients/NewPatientDialog";
 import { NewAppointmentDialog } from "@/components/appointments/NewAppointmentDialog";
 import { ClinicalHistoryPanel } from "@/components/patients/ClinicalHistoryPanel";
 import { ClinicalHistoryDialog } from "@/components/patients/ClinicalHistoryDialog";
+import { ClinicalQuickActionsPanel } from "@/components/patients/ClinicalQuickActionsPanel";
+import { OdontogramPanel } from "@/components/patients/OdontogramPanel";
+import { EditPatientDialog } from "@/components/patients/EditPatientDialog";
 
 const getPatientStatus = (patient: Patient): "active" | "inactive" | "new" => {
   const daysSinceCreated = differenceInDays(new Date(), parseISO(patient.created_at));
   if (daysSinceCreated <= 30) return "new";
-  
+
   if (patient.updated_at) {
     const daysSinceUpdate = differenceInDays(new Date(), parseISO(patient.updated_at));
     if (daysSinceUpdate > 180) return "inactive";
   }
-  
+
   return "active";
 };
 
@@ -50,13 +54,15 @@ const statusConfig = {
 const Pacientes = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedTooth, setSelectedTooth] = useState("");
 
   const { data: patients, isLoading } = usePatients();
 
   const filteredPatients = useMemo(() => {
     if (!patients) return [];
     if (!searchQuery) return patients;
-    
+
     const query = searchQuery.toLowerCase();
     return patients.filter(
       (p) =>
@@ -70,20 +76,12 @@ const Pacientes = () => {
 
   const selectedPatient = useMemo(() => {
     if (!selectedPatientId || !patients) return patients?.[0] || null;
-    return patients.find(p => p.id === selectedPatientId) || patients[0] || null;
+    return patients.find((p) => p.id === selectedPatientId) || patients[0] || null;
   }, [selectedPatientId, patients]);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "—";
     return format(parseISO(dateStr), "d MMM yyyy", { locale: es });
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-    }).format(amount);
   };
 
   if (isLoading) {
@@ -100,15 +98,11 @@ const Pacientes = () => {
     <MainLayout>
       <div className="p-6 lg:p-8 h-[calc(100vh-2rem)]">
         <div className="flex gap-6 h-full">
-          {/* Patient List */}
           <div className="w-full lg:w-1/2 xl:w-2/5 flex flex-col">
             <div className="card-elevated flex-1 flex flex-col overflow-hidden">
-              {/* Header */}
               <div className="p-4 lg:p-6 border-b border-border space-y-4">
                 <div className="flex items-center justify-between">
-                  <h1 className="text-2xl font-display font-bold text-foreground">
-                    Pacientes
-                  </h1>
+                  <h1 className="text-2xl font-display font-bold text-foreground">Pacientes</h1>
                   <NewPatientDialog />
                 </div>
                 <div className="flex gap-2">
@@ -127,7 +121,6 @@ const Pacientes = () => {
                 </div>
               </div>
 
-              {/* Patient List */}
               <div className="flex-1 overflow-y-auto scrollbar-thin">
                 {filteredPatients.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-64 text-center px-4">
@@ -144,12 +137,15 @@ const Pacientes = () => {
                   filteredPatients.map((patient) => {
                     const status = getPatientStatus(patient);
                     const fullName = `${patient.first_name} ${patient.last_name}`;
-                    const initials = fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
-                    
+                    const initials = fullName.split(" ").map((n) => n[0]).join("").slice(0, 2);
+
                     return (
                       <div
                         key={patient.id}
-                        onClick={() => setSelectedPatientId(patient.id)}
+                        onClick={() => {
+                          setSelectedPatientId(patient.id);
+                          setSelectedTooth("");
+                        }}
                         className={cn(
                           "flex items-center gap-4 p-4 border-b border-border cursor-pointer transition-colors",
                           selectedPatient?.id === patient.id
@@ -164,16 +160,25 @@ const Pacientes = () => {
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-foreground truncate">
-                              {fullName}
-                            </p>
+                            <p className="font-medium text-foreground truncate">{fullName}</p>
                             <Badge variant="outline" className={cn("text-xs shrink-0", statusConfig[status].className)}>
                               {statusConfig[status].label}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {patient.phone}
-                          </p>
+                          {patient.phone ? (
+                            <a
+                              href={`https://wa.me/${patient.phone.replace(/[^\d]/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-sm text-[#25D366] hover:underline flex items-center gap-1 truncate"
+                            >
+                              <MessageCircle className="w-3 h-3 shrink-0" />
+                              {patient.phone}
+                            </a>
+                          ) : (
+                            <p className="text-sm text-muted-foreground truncate">Sin teléfono</p>
+                          )}
                         </div>
                         <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                       </div>
@@ -184,17 +189,15 @@ const Pacientes = () => {
             </div>
           </div>
 
-          {/* Patient Detail */}
           {selectedPatient && (
             <div className="hidden lg:flex flex-1 flex-col">
               <div className="card-elevated flex-1 overflow-y-auto scrollbar-thin">
-                {/* Patient Header */}
                 <div className="p-6 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-4">
                       <Avatar className="w-20 h-20 ring-4 ring-primary/20">
                         <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-semibold">
-                          {`${selectedPatient.first_name} ${selectedPatient.last_name}`.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          {`${selectedPatient.first_name} ${selectedPatient.last_name}`.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
@@ -211,16 +214,17 @@ const Pacientes = () => {
                               HC: {(selectedPatient as Patient & { clinical_history_code?: string }).clinical_history_code}
                             </Badge>
                           )}
+                          {selectedTooth ? <Badge variant="outline">Pieza {selectedTooth}</Badge> : null}
                         </div>
                       </div>
                     </div>
-                    <Button variant="outline" size="icon">
-                      <MoreVertical className="w-4 h-4" />
+                    <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Editar
                     </Button>
                   </div>
                 </div>
 
-                {/* Contact Info */}
                 <div className="p-6 border-b border-border">
                   <h3 className="text-sm font-medium text-muted-foreground mb-4">Información de Contacto</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -245,7 +249,6 @@ const Pacientes = () => {
                   </div>
                 </div>
 
-                {/* Patient Info */}
                 <div className="p-6 border-b border-border">
                   <h3 className="text-sm font-medium text-muted-foreground mb-4">Información Personal</h3>
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -272,7 +275,6 @@ const Pacientes = () => {
                   </div>
                 </div>
 
-                {/* Tabs for Details and Clinical History */}
                 <Tabs defaultValue="info" className="flex-1 flex flex-col">
                   <div className="px-6 border-b border-border">
                     <TabsList className="grid w-full max-w-[400px] grid-cols-2">
@@ -286,9 +288,8 @@ const Pacientes = () => {
                       </TabsTrigger>
                     </TabsList>
                   </div>
-                  
+
                   <TabsContent value="info" className="flex-1 overflow-y-auto scrollbar-thin m-0 p-6">
-                    {/* Quick Actions */}
                     <div className="mb-6">
                       <h3 className="text-sm font-medium text-muted-foreground mb-4">Acciones</h3>
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -321,7 +322,6 @@ const Pacientes = () => {
                       </div>
                     </div>
 
-                    {/* Stats */}
                     <div className="mb-6">
                       <h3 className="text-sm font-medium text-muted-foreground mb-4">Resumen</h3>
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -340,7 +340,6 @@ const Pacientes = () => {
                       </div>
                     </div>
 
-                    {/* Notes */}
                     {selectedPatient.notes && (
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-2">Notas</h3>
@@ -348,15 +347,35 @@ const Pacientes = () => {
                       </div>
                     )}
                   </TabsContent>
-                  
+
                   <TabsContent value="history" className="flex-1 overflow-y-auto scrollbar-thin m-0 p-6">
-                    <ClinicalHistoryPanel
-                      patientId={selectedPatient.id}
-                      patientName={`${selectedPatient.first_name} ${selectedPatient.last_name}`}
-                    />
+                    <div className="space-y-6">
+                      <OdontogramPanel
+                        patientId={selectedPatient.id}
+                        patientName={`${selectedPatient.first_name} ${selectedPatient.last_name}`}
+                        selectedTooth={selectedTooth}
+                        onSelectTooth={setSelectedTooth}
+                      />
+                      <ClinicalQuickActionsPanel
+                        patientId={selectedPatient.id}
+                        patientName={`${selectedPatient.first_name} ${selectedPatient.last_name}`}
+                        selectedTooth={selectedTooth}
+                        onSelectedToothChange={setSelectedTooth}
+                      />
+                      <ClinicalHistoryPanel
+                        patientId={selectedPatient.id}
+                        patientName={`${selectedPatient.first_name} ${selectedPatient.last_name}`}
+                      />
+                    </div>
                   </TabsContent>
                 </Tabs>
               </div>
+
+              <EditPatientDialog
+                open={editDialogOpen}
+                onOpenChange={setEditDialogOpen}
+                patient={selectedPatient}
+              />
             </div>
           )}
         </div>
@@ -366,3 +385,4 @@ const Pacientes = () => {
 };
 
 export default Pacientes;
+

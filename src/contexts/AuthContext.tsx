@@ -1,16 +1,27 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { authService, User, AuthSession, ClinicInfo } from "@/lib/api/authService";
+import { api } from "@/lib/api/apiClient";
 import { useToast } from "@/hooks/use-toast";
 
-type AppRole = "admin" | "doctor" | "assistant" | "accountant";
+type AppRole = "admin" | "doctor" | "assistant" | "accountant" | "staff";
+
+interface ClinicState {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url?: string;
+}
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
+  session: AuthSession | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, role?: AppRole) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  clinic: ClinicState | null;
+  needsClinicSelection: boolean;
+  availableClinics: ClinicInfo[];
+  selectClinic: (clinicId: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, licenseCode: string, role?: AppRole) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null; needsClinicSelection?: boolean; clinics?: ClinicInfo[] }>;
   signOut: () => Promise<void>;
 }
 
@@ -18,71 +29,72 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [clinic, setClinic] = useState<ClinicState | null>(null);
+  const [needsClinicSelection, setNeedsClinicSelection] = useState(false);
+  const [availableClinics, setAvailableClinics] = useState<ClinicInfo[]>([]);
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Set up auth state listener BEFORE checking session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+  // Restore clinic info from localStorage
+  const restoreClinic = () => {
+    const clinicId = localStorage.getItem('clinic_id');
+    const clinicName = localStorage.getItem('clinic_name');
+    const clinicSlug = localStorage.getItem('clinic_slug');
+    if (clinicId) {
+      setClinic({ id: clinicId, name: clinicName || '', slug: clinicSlug || '' });
+    }
+  };
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+  useEffect(() => {
+    const { unsubscribe } = authService.onAuthStateChange((user) => {
+      setUser(user);
+      if (user) {
+        const token = localStorage.getItem('auth_token');
+        setSession(token ? { user, access_token: token } : null);
+        restoreClinic();
+      } else {
+        setSession(null);
+        setClinic(null);
+        setNeedsClinicSelection(false);
+        setAvailableClinics([]);
+      }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    authService.getSession().then(({ data }) => {
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      restoreClinic();
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, role: AppRole = "doctor") => {
+  const signUp = async (email: string, password: string, fullName: string, licenseCode: string, role: AppRole = "doctor") => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await authService.signUp({
         email,
         password,
+        licenseCode,
+        role,
         options: {
-          emailRedirectTo: window.location.origin,
           data: {
             full_name: fullName,
-            role: role,
           },
         },
       });
 
       if (error) throw error;
 
-      // Create profile and assign selected role
-      if (data.user) {
-        // Create profile
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            user_id: data.user.id,
-            full_name: fullName,
-          });
-
-        if (profileError) {
-          console.error("Error creating profile:", profileError);
-        }
-
-        // Assign selected role
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: data.user.id,
-            role: role,
-          });
-
-        if (roleError) {
-          console.error("Error assigning role:", roleError);
-        }
+      // Set clinic info from registration response
+      if (data.session?.clinic_id) {
+        setClinic({
+          id: data.session.clinic_id,
+          name: data.session.clinic_name || '',
+          slug: data.session.clinic_slug || '',
+        });
       }
 
       toast({
@@ -98,12 +110,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await authService.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
+
+      const sess = data.session;
+
+      if (sess?.needs_clinic_selection && sess.available_clinics?.length) {
+        setNeedsClinicSelection(true);
+        setAvailableClinics(sess.available_clinics);
+        return { error: null, needsClinicSelection: true, clinics: sess.available_clinics };
+      }
+
+      // Single clinic or superadmin - auto-selected
+      if (sess?.clinic_id) {
+        setClinic({
+          id: sess.clinic_id,
+          name: sess.clinic_name || '',
+          slug: sess.clinic_slug || '',
+        });
+      }
+      setNeedsClinicSelection(false);
 
       toast({
         title: "Bienvenido",
@@ -116,8 +146,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const selectClinicFn = async (clinicId: string) => {
+    try {
+      const { data, error } = await authService.selectClinic(clinicId);
+      if (error) throw error;
+
+      if (data) {
+        setClinic({
+          id: data.clinic_id,
+          name: data.name,
+          slug: data.slug,
+          logo_url: data.logo_url,
+        });
+      }
+      setNeedsClinicSelection(false);
+      setAvailableClinics([]);
+
+      toast({
+        title: "Bienvenido",
+        description: `Has ingresado a ${data?.name || 'la clínica'}.`,
+      });
+
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    }
+  };
+
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await authService.signOut();
+    setClinic(null);
+    setNeedsClinicSelection(false);
+    setAvailableClinics([]);
     toast({
       title: "Sesión cerrada",
       description: "Has cerrado sesión correctamente.",
@@ -125,7 +185,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{
+      user, session, loading, clinic, needsClinicSelection, availableClinics,
+      selectClinic: selectClinicFn, signUp, signIn, signOut
+    }}>
       {children}
     </AuthContext.Provider>
   );

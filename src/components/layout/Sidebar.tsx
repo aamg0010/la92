@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import logoImage from "@/assets/logo-la92.png";
-import { 
-  Calendar, 
-  Users, 
-  LayoutDashboard, 
-  Settings, 
+import fallbackLogo from "@/assets/logo-la92.png"; // fallback solo si la clínica no tiene logo configurado
+import { useClinicSettings } from "@/hooks/useSettings";
+import {
+  Calendar,
+  Users,
+  LayoutDashboard,
+  Settings,
   FileText,
   TrendingUp,
+  TrendingDown,
   ChevronLeft,
   ChevronRight,
   Sparkles,
@@ -17,13 +19,22 @@ import {
   Package,
   Factory,
   Shield,
-  Loader2
+  Loader2,
+  Biohazard,
+  Thermometer,
+  FileSpreadsheet,
+  X,
+  Download,
+  Clock,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { InstallPWAButton } from "@/components/ui/install-pwa-button";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole, useUserProfile, ROLE_LABELS, hasPermission, type AppRole } from "@/hooks/useUserRole";
+import { useCountryModules } from "@/hooks/useCountryModules";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,20 +45,52 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Calendar, label: "Agenda", path: "/agenda" },
-  { icon: Users, label: "Pacientes", path: "/pacientes" },
-  { icon: FileText, label: "Tratamientos", path: "/tratamientos" },
-  { icon: Package, label: "Inventario", path: "/inventario" },
-  { icon: Factory, label: "Laboratorios", path: "/laboratorios" },
-  { icon: TrendingUp, label: "Rentabilidad", path: "/finanzas" },
-  { icon: Receipt, label: "Facturación", path: "/facturacion", badge: "DIAN" },
-  { icon: Wallet, label: "Cobros", path: "/cobros" },
-  { icon: Sparkles, label: "Asistente IA", path: "/asistente-ia", isAI: true },
-  { icon: Settings, label: "Configuración", path: "/configuracion" },
-  { icon: Shield, label: "Administración", path: "/administracion", adminOnly: true },
-];
+// Función para generar menú según país
+const getMenuItems = (countryModules: {
+  showFacturacionDIAN: boolean;
+  showRIPS: boolean;
+  showFacturacionVerifactu: boolean;
+}) => {
+  const items = [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+    { icon: Calendar, label: "Agenda", path: "/agenda" },
+    { icon: Users, label: "Pacientes", path: "/pacientes" },
+    { icon: FileText, label: "Tratamientos", path: "/tratamientos" },
+    { icon: FileText, label: "Presupuestos", path: "/presupuestos" },
+    { icon: Package, label: "Inventario", path: "/inventario" },
+    { icon: Factory, label: "Laboratorios", path: "/laboratorios" },
+    { icon: TrendingUp, label: "Rentabilidad", path: "/finanzas" },
+  ];
+
+  // Facturación según país
+  if (countryModules.showFacturacionDIAN) {
+    items.push({ icon: Receipt, label: "Facturación", path: "/facturacion", badge: "DIAN" });
+  }
+  if (countryModules.showFacturacionVerifactu) {
+    items.push({ icon: Receipt, label: "Facturación", path: "/facturacion-es", badge: "Verifactu" });
+  }
+
+  items.push(
+    { icon: Wallet, label: "Cobros", path: "/cobros" },
+    { icon: TrendingDown, label: "Egresos", path: "/egresos" },
+  );
+
+  // RIPS solo Colombia
+  if (countryModules.showRIPS) {
+    items.push({ icon: FileSpreadsheet, label: "RIPS", path: "/rips", badge: "MinSalud" });
+  }
+
+  items.push(
+    { icon: Biohazard, label: "Residuos RH1", path: "/rh1" },
+    { icon: Thermometer, label: "Control Ambiental", path: "/control-ambiental" },
+    { icon: Clock, label: "Fichaje", path: "/fichaje" },
+    { icon: Sparkles, label: "Asistente IA", path: "/asistente-ia", isAI: true },
+    { icon: Settings, label: "Configuración", path: "/configuracion" },
+    { icon: Shield, label: "Administración", path: "/administracion", adminOnly: true },
+  );
+
+  return items;
+};
 
 const ROLE_COLORS: Record<AppRole, string> = {
   admin: "bg-destructive/10 text-destructive border-destructive/20",
@@ -56,22 +99,35 @@ const ROLE_COLORS: Record<AppRole, string> = {
   accountant: "bg-success/10 text-success border-success/20",
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export function Sidebar({ onClose }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
+  const { signOut, user, clinic } = useAuth();
   const { data: role, isLoading: roleLoading } = useUserRole();
   const { data: profile, isLoading: profileLoading } = useUserProfile();
+  const { data: clinicSettings } = useClinicSettings();
+  const countryModules = useCountryModules();
+
+  // Logo de la clínica activa: prefiere logo_url, fallback a invoice_logo_url, fallback a logo genérico
+  const clinicLogo = clinicSettings?.logo_url || clinicSettings?.invoice_logo_url || fallbackLogo;
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
   };
 
-  const filteredMenuItems = menuItems.filter(item => 
-    hasPermission(role, item.path)
-  );
+  // Generar menú según país configurado
+  const menuItems = getMenuItems(countryModules);
+
+  // No mostrar ítems restringidos mientras se carga el rol
+  const filteredMenuItems = roleLoading
+    ? menuItems.filter(item => !item.adminOnly)
+    : menuItems.filter(item => hasPermission(role, item.path));
 
   const userInitials = profile?.full_name
     ? profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
@@ -93,27 +149,37 @@ export function Sidebar() {
           "flex items-center gap-3 overflow-hidden transition-all duration-300",
           isCollapsed && "opacity-0 w-0"
         )}>
-          <img 
-            src={logoImage} 
-            alt="La 92" 
-            className="w-12 h-12 rounded-xl object-contain flex-shrink-0"
+          <img
+            src={clinicLogo}
+            alt={clinic?.name || "dentry!"}
+            className="w-16 h-16 rounded-xl object-contain flex-shrink-0"
           />
           <div className="flex flex-col min-w-0">
             <span className="font-display text-lg font-semibold text-sidebar-primary-foreground truncate">
-              La 92
+              {clinic?.name || "dentry!"}
             </span>
             <span className="text-xs text-sidebar-foreground/70 truncate">
               Odontología Integral
             </span>
           </div>
         </div>
-        
+
         {isCollapsed && (
-          <img 
-            src={logoImage} 
-            alt="La 92" 
-            className="w-10 h-10 rounded-xl object-contain mx-auto"
+          <img
+            src={clinicLogo}
+            alt={clinic?.name || "dentry!"}
+            className="w-12 h-12 rounded-xl object-contain mx-auto"
           />
+        )}
+
+        {/* Mobile close button */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="lg:hidden p-2 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground"
+          >
+            <X className="w-5 h-5" />
+          </button>
         )}
       </div>
 
@@ -189,6 +255,15 @@ export function Sidebar() {
           })
         )}
       </nav>
+
+      {/* Theme & Install */}
+      <div className={cn(
+        "px-3 py-2 border-t border-sidebar-border space-y-1",
+        isCollapsed && "px-2"
+      )}>
+        <ThemeToggle variant="sidebar" collapsed={isCollapsed} />
+        {!isCollapsed && <InstallPWAButton variant="sidebar" />}
+      </div>
 
       {/* User Profile Section */}
       <div className="p-3 border-t border-sidebar-border">

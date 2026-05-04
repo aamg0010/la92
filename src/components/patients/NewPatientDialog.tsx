@@ -40,11 +40,26 @@ const patientSchema = z.object({
   email: z.string().email("Correo inválido").optional().or(z.literal("")),
   birth_date: z.string().optional(),
   gender: z.string().optional(),
+  marital_status: z.string().optional(),
+  blood_type: z.string().optional(),
+  occupation: z.string().max(100).optional(),
   address: z.string().max(200).optional(),
   city: z.string().max(50).optional(),
   health_insurance: z.string().max(100).optional(),
   notes: z.string().max(500).optional(),
 });
+
+const MARITAL_STATUS_OPTIONS = [
+  { value: "soltero", label: "Soltero(a)" },
+  { value: "casado", label: "Casado(a)" },
+  { value: "union_libre", label: "Unión Libre" },
+  { value: "divorciado", label: "Divorciado(a)" },
+  { value: "viudo", label: "Viudo(a)" },
+];
+
+const BLOOD_TYPE_OPTIONS = [
+  "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Desconocido"
+];
 
 type PatientFormData = z.infer<typeof patientSchema>;
 
@@ -68,6 +83,9 @@ export function NewPatientDialog({ trigger, onSuccess }: NewPatientDialogProps) 
       email: "",
       birth_date: "",
       gender: "",
+      marital_status: "",
+      blood_type: "",
+      occupation: "",
       address: "",
       city: "Medellín",
       health_insurance: "",
@@ -86,9 +104,12 @@ export function NewPatientDialog({ trigger, onSuccess }: NewPatientDialogProps) 
         email: data.email || null,
         birth_date: data.birth_date || null,
         gender: data.gender || null,
+        marital_status: data.marital_status || null,
+        blood_type: data.blood_type || null,
+        occupation: data.occupation || null,
         address: data.address || null,
         city: data.city || null,
-        health_insurance: data.health_insurance || null,
+        insurance_provider: data.health_insurance || null,
         notes: data.notes || null,
       });
       
@@ -254,6 +275,71 @@ export function NewPatientDialog({ trigger, onSuccess }: NewPatientDialogProps) 
                         <SelectItem value="O">Otro</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Información adicional requerida */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="marital_status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estado Civil</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {MARITAL_STATUS_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="blood_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Sangre</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {BLOOD_TYPE_OPTIONS.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="occupation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ocupación</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Profesión u oficio" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

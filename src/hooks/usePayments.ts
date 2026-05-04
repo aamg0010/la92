@@ -1,10 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api/apiClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
-export type Payment = Tables<"payments"> & {
+export interface Payment {
+  id: string;
+  patient_id: string;
+  invoice_id: string | null;
+  financing_plan_id: string | null;
+  amount: number;
+  payment_method: string;
+  payment_date: string;
+  reference_number: string | null;
+  notes: string | null;
+  processed_by: string | null;
+  created_at: string;
   patient?: {
     id: string;
     first_name: string;
@@ -16,9 +26,24 @@ export type Payment = Tables<"payments"> & {
     invoice_number: string;
     total: number;
   } | null;
-};
+}
 
-export type FinancingPlan = Tables<"financing_plans"> & {
+export interface FinancingPlan {
+  id: string;
+  patient_id: string;
+  invoice_id: string | null;
+  total_amount: number;
+  down_payment: number | null;
+  remaining_amount: number;
+  installments: number;
+  installment_amount: number;
+  interest_rate: number | null;
+  start_date: string;
+  status: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
   patient?: {
     id: string;
     first_name: string;
@@ -32,7 +57,7 @@ export type FinancingPlan = Tables<"financing_plans"> & {
     total: number;
   } | null;
   payments?: Payment[];
-};
+}
 
 // ============ PAYMENTS ============
 
@@ -45,13 +70,9 @@ export function usePayments(filters?: {
   return useQuery({
     queryKey: ["payments", filters],
     queryFn: async () => {
-      let query = supabase
-        .from("payments")
-        .select(`
-          *,
-          patient:patients(id, first_name, last_name, phone),
-          invoice:invoices(id, invoice_number, total)
-        `)
+      let query = api
+        .from<Payment>("payments")
+        .select("*,patient:patients(id,first_name,last_name,phone),invoice:invoices(id,invoice_number,total)")
         .order("payment_date", { ascending: false });
 
       if (filters?.startDate) {
@@ -80,29 +101,30 @@ export function useCreatePayment() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (payment: Omit<TablesInsert<"payments">, "processed_by">) => {
-      const { data, error } = await supabase
+    mutationFn: async (payment: Partial<Payment>) => {
+      const { data, error } = await api
         .from("payments")
         .insert({
           ...payment,
           processed_by: user?.id,
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error("No se pudo registrar el pago");
 
       // Si hay plan de financiamiento, actualizar el monto restante
       if (payment.financing_plan_id) {
-        const { data: plan } = await supabase
-          .from("financing_plans")
+        const { data: plan } = await api
+          .from<FinancingPlan>("financing_plans")
           .select("remaining_amount")
           .eq("id", payment.financing_plan_id)
-          .single();
+          .maybeSingle();
 
         if (plan) {
           const newRemaining = Number(plan.remaining_amount) - Number(payment.amount);
-          await supabase
+          await api
             .from("financing_plans")
             .update({
               remaining_amount: Math.max(0, newRemaining),
@@ -112,12 +134,47 @@ export function useCreatePayment() {
         }
       }
 
+      // Si el pago está asociado a una factura, comprobar si queda saldada
+      // y, en ese caso, marcarla como 'paid'. Se suman TODOS los pagos de la
+      // factura (incluido el recién insertado) para evitar depender de un
+      // trigger de BD.
+      if (payment.invoice_id) {
+        const { data: invoice } = await api
+          .from<{ id: string; total: number; status: string }>("invoices")
+          .select("id,total,status")
+          .eq("id", payment.invoice_id)
+          .maybeSingle();
+
+        if (invoice && invoice.status !== "paid") {
+          const { data: invoicePayments } = await api
+            .from<{ amount: number }>("payments")
+            .select("amount")
+            .eq("invoice_id", payment.invoice_id);
+
+          const totalPaid = (invoicePayments as { amount: number }[] | null)?.reduce(
+            (acc, p) => acc + Number(p.amount),
+            0,
+          ) ?? 0;
+
+          if (totalPaid >= Number(invoice.total)) {
+            await api
+              .from("invoices")
+              .update({ status: "paid" })
+              .eq("id", payment.invoice_id);
+          }
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["financing-plans"] });
       queryClient.invalidateQueries({ queryKey: ["payment-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-pending-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-debt"] });
+      queryClient.invalidateQueries({ queryKey: ["debt-stats"] });
       toast({
         title: "Pago registrado",
         description: "El pago ha sido registrado correctamente.",
@@ -133,19 +190,51 @@ export function useCreatePayment() {
   });
 }
 
+// ============ PATIENT PENDING INVOICES ============
+
+/**
+ * Devuelve las facturas pendientes (no pagadas ni anuladas) del paciente.
+ * Se usa en el diálogo de registro de pago para permitir asociar, de forma
+ * opcional, un pago a una factura concreta. Si `patientId` es null, no se
+ * ejecuta la query y se devuelve array vacío.
+ */
+export interface PendingInvoice {
+  id: string;
+  invoice_number: string;
+  total: number;
+  issue_date: string;
+  status: string;
+}
+
+export function usePatientPendingInvoices(patientId: string | null) {
+  return useQuery({
+    queryKey: ["patient-pending-invoices", patientId],
+    queryFn: async () => {
+      if (!patientId) return [] as PendingInvoice[];
+
+      const { data, error } = await api
+        .from<PendingInvoice>("invoices")
+        .select("id,invoice_number,total,issue_date,status")
+        .eq("patient_id", patientId)
+        .in("status", ["pending", "sent", "validated"])
+        .order("issue_date", { ascending: false });
+
+      if (error) throw error;
+      return (data ?? []) as PendingInvoice[];
+    },
+    enabled: !!patientId,
+  });
+}
+
 // ============ FINANCING PLANS ============
 
 export function useFinancingPlans(filters?: { status?: string; patientId?: string }) {
   return useQuery({
     queryKey: ["financing-plans", filters],
     queryFn: async () => {
-      let query = supabase
-        .from("financing_plans")
-        .select(`
-          *,
-          patient:patients(id, first_name, last_name, phone, email),
-          invoice:invoices(id, invoice_number, total)
-        `)
+      let query = api
+        .from<FinancingPlan>("financing_plans")
+        .select("*,patient:patients(id,first_name,last_name,phone,email),invoice:invoices(id,invoice_number,total)")
         .order("created_at", { ascending: false });
 
       if (filters?.status) {
@@ -168,23 +257,19 @@ export function useFinancingPlan(id: string | null) {
     queryFn: async () => {
       if (!id) return null;
 
-      const { data: plan, error: planError } = await supabase
-        .from("financing_plans")
-        .select(`
-          *,
-          patient:patients(id, first_name, last_name, phone, email),
-          invoice:invoices(id, invoice_number, total)
-        `)
+      const { data: plan, error: planError } = await api
+        .from<FinancingPlan>("financing_plans")
+        .select("*,patient:patients(id,first_name,last_name,phone,email),invoice:invoices(id,invoice_number,total)")
         .eq("id", id)
         .single();
 
       if (planError) throw planError;
 
-      const { data: payments, error: paymentsError } = await supabase
-        .from("payments")
+      const { data: payments, error: paymentsError } = await api
+        .from<Payment>("payments")
         .select("*")
         .eq("financing_plan_id", id)
-        .order("payment_date", { ascending: true });
+        .order("payment_date");
 
       if (paymentsError) throw paymentsError;
 
@@ -200,8 +285,8 @@ export function useCreateFinancingPlan() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (plan: Omit<TablesInsert<"financing_plans">, "created_by">) => {
-      const { data, error } = await supabase
+    mutationFn: async (plan: Partial<FinancingPlan>) => {
+      const { data, error } = await api
         .from("financing_plans")
         .insert({
           ...plan,
@@ -235,8 +320,8 @@ export function useUpdateFinancingPlan() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & TablesUpdate<"financing_plans">) => {
-      const { data, error } = await supabase
+    mutationFn: async ({ id, ...updates }: { id: string } & Partial<FinancingPlan>) => {
+      const { data, error } = await api
         .from("financing_plans")
         .update(updates)
         .eq("id", id)
@@ -271,30 +356,23 @@ export function usePatientDebt() {
     queryKey: ["patient-debt"],
     queryFn: async () => {
       // Obtener facturas con pagos
-      const { data: invoices, error: invoicesError } = await supabase
+      const { data: invoices, error: invoicesError } = await api
         .from("invoices")
-        .select(`
-          id,
-          patient_id,
-          total,
-          due_date,
-          status,
-          patient:patients(id, first_name, last_name, phone, email)
-        `)
+        .select("id,patient_id,total,due_date,status,patient:patients(id,first_name,last_name,phone,email)")
         .in("status", ["pending", "sent", "validated"])
-        .order("due_date", { ascending: true });
+        .order("due_date");
 
       if (invoicesError) throw invoicesError;
 
-      const { data: payments, error: paymentsError } = await supabase
-        .from("payments")
-        .select("invoice_id, amount");
+      const { data: payments, error: paymentsError } = await api
+        .from<Payment>("payments")
+        .select("invoice_id,amount");
 
       if (paymentsError) throw paymentsError;
 
       // Calcular deuda por paciente
       const paymentsByInvoice: Record<string, number> = {};
-      payments?.forEach((p) => {
+      (payments as { invoice_id: string; amount: number }[])?.forEach((p) => {
         paymentsByInvoice[p.invoice_id] = (paymentsByInvoice[p.invoice_id] || 0) + Number(p.amount);
       });
 
@@ -311,7 +389,22 @@ export function usePatientDebt() {
 
       const today = new Date().toISOString().split("T")[0];
 
-      invoices?.forEach((inv) => {
+      interface InvoiceData {
+        id: string;
+        patient_id: string;
+        total: number;
+        due_date: string | null;
+        status: string;
+        patient: {
+          id: string;
+          first_name: string;
+          last_name: string;
+          phone: string;
+          email: string | null;
+        } | null;
+      }
+
+      (invoices as InvoiceData[])?.forEach((inv) => {
         if (!inv.patient) return;
 
         const paid = paymentsByInvoice[inv.id] || 0;
@@ -352,7 +445,7 @@ export function usePaymentStats(period?: { startDate: string; endDate: string })
   return useQuery({
     queryKey: ["payment-stats", period],
     queryFn: async () => {
-      let query = supabase.from("payments").select("amount, payment_method, payment_date");
+      let query = api.from<Payment>("payments").select("amount,payment_method,payment_date");
 
       if (period?.startDate) {
         query = query.gte("payment_date", period.startDate);
@@ -364,17 +457,18 @@ export function usePaymentStats(period?: { startDate: string; endDate: string })
       const { data, error } = await query;
       if (error) throw error;
 
-      const totalCollected = data.reduce((acc, p) => acc + Number(p.amount), 0);
-      const paymentCount = data.length;
+      const payments = data as Payment[];
+      const totalCollected = payments.reduce((acc, p) => acc + Number(p.amount), 0);
+      const paymentCount = payments.length;
 
       const byMethod: Record<string, number> = {};
-      data.forEach((p) => {
+      payments.forEach((p) => {
         byMethod[p.payment_method] = (byMethod[p.payment_method] || 0) + Number(p.amount);
       });
 
       // Recaudo de hoy
       const today = new Date().toISOString().split("T")[0];
-      const todayPayments = data.filter((p) => p.payment_date.startsWith(today));
+      const todayPayments = payments.filter((p) => p.payment_date.startsWith(today));
       const todayTotal = todayPayments.reduce((acc, p) => acc + Number(p.amount), 0);
 
       return {
@@ -392,22 +486,22 @@ export function useDebtStats() {
   return useQuery({
     queryKey: ["debt-stats"],
     queryFn: async () => {
-      const { data: invoices } = await supabase
+      const { data: invoices } = await api
         .from("invoices")
-        .select("id, total, due_date, status")
+        .select("id,total,due_date,status")
         .in("status", ["pending", "sent", "validated"]);
 
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("invoice_id, amount");
+      const { data: payments } = await api
+        .from<Payment>("payments")
+        .select("invoice_id,amount");
 
-      const { data: plans } = await supabase
-        .from("financing_plans")
-        .select("remaining_amount, status")
+      const { data: plans } = await api
+        .from<FinancingPlan>("financing_plans")
+        .select("remaining_amount,status")
         .eq("status", "active");
 
       const paymentsByInvoice: Record<string, number> = {};
-      payments?.forEach((p) => {
+      (payments as { invoice_id: string; amount: number }[])?.forEach((p) => {
         paymentsByInvoice[p.invoice_id] = (paymentsByInvoice[p.invoice_id] || 0) + Number(p.amount);
       });
 
@@ -415,7 +509,14 @@ export function useDebtStats() {
       let totalDebt = 0;
       let overdueDebt = 0;
 
-      invoices?.forEach((inv) => {
+      interface InvoiceStats {
+        id: string;
+        total: number;
+        due_date: string | null;
+        status: string;
+      }
+
+      (invoices as InvoiceStats[])?.forEach((inv) => {
         const paid = paymentsByInvoice[inv.id] || 0;
         const remaining = Number(inv.total) - paid;
         if (remaining > 0) {
@@ -426,7 +527,7 @@ export function useDebtStats() {
         }
       });
 
-      const inPlanDebt = plans?.reduce((acc, p) => acc + Number(p.remaining_amount), 0) || 0;
+      const inPlanDebt = (plans as FinancingPlan[])?.reduce((acc, p) => acc + Number(p.remaining_amount), 0) || 0;
 
       return {
         totalDebt,

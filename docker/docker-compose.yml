@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: clinident-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_DB: clinident
+      POSTGRES_USER: clinident_owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Se expone también al init script (000_init.sh) para crear el rol API
+      API_ROLE_PASSWORD: ${API_ROLE_PASSWORD}
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - clinident-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinident_owner -d clinident"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  postgrest:
+    image: postgrest/postgrest:v12.2.3
+    container_name: clinident-postgrest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      PGRST_DB_URI: postgres://clinident_api:${API_ROLE_PASSWORD}@postgres:5432/clinident
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: clinident_anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_SERVER_PORT: "3000"
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - clinident-net
+
+networks:
+  clinident-net:
+    driver: bridge

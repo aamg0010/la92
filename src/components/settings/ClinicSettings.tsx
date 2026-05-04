@@ -279,10 +279,21 @@ export function ClinicSettings() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="COP">COP - Peso Colombiano</SelectItem>
-                    <SelectItem value="USD">USD - Dólar</SelectItem>
-                    <SelectItem value="MXN">MXN - Peso Mexicano</SelectItem>
-                    <SelectItem value="PEN">PEN - Sol Peruano</SelectItem>
+                    <SelectItem value="COP">
+                      <span className="flex items-center gap-2">
+                        <span>🇨🇴</span> COP - Peso Colombiano
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="USD">
+                      <span className="flex items-center gap-2">
+                        <span>🇺🇸</span> USD - Dólar
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="EUR">
+                      <span className="flex items-center gap-2">
+                        <span>🇪🇺</span> EUR - Euro
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>

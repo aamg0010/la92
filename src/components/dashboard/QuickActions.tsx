@@ -1,5 +1,5 @@
-import { Plus, UserPlus, CalendarPlus, FileText, Receipt, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { UserPlus, CalendarPlus, FileText, Receipt, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const actions = [
@@ -8,30 +8,35 @@ const actions = [
     label: "Nueva Cita",
     description: "Agendar paciente",
     variant: "primary" as const,
+    path: "/agenda",
   },
   {
     icon: UserPlus,
     label: "Nuevo Paciente",
     description: "Registrar paciente",
     variant: "default" as const,
+    path: "/pacientes?nuevo=1",
   },
   {
     icon: FileText,
     label: "Historia Clínica",
-    description: "Crear expediente",
+    description: "Ver expedientes",
     variant: "default" as const,
+    path: "/pacientes",
   },
   {
     icon: Receipt,
     label: "Nuevo Pago",
     description: "Registrar cobro",
     variant: "default" as const,
+    path: "/cobros",
   },
   {
     icon: Sparkles,
     label: "Consultar IA",
     description: "Asistente dental",
     variant: "accent" as const,
+    path: "/asistente-ia",
   },
 ];
 
@@ -48,20 +53,23 @@ const iconVariants = {
 };
 
 export function QuickActions() {
+  const navigate = useNavigate();
+
   return (
     <div className="card-elevated p-6">
       <h3 className="font-display text-xl font-semibold text-foreground mb-4">
         Acciones Rápidas
       </h3>
-      
+
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {actions.map((action, index) => {
+        {actions.map((action) => {
           const Icon = action.icon;
           return (
             <button
               key={action.label}
+              onClick={() => navigate(action.path)}
               className={cn(
-                "group flex flex-col items-center gap-3 p-4 rounded-xl border transition-all hover:shadow-medium",
+                "group flex flex-col items-center gap-3 p-4 rounded-xl border transition-all hover:shadow-medium cursor-pointer",
                 buttonVariants[action.variant]
               )}
             >
