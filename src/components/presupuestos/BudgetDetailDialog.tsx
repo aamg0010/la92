@@ -338,11 +338,15 @@ export function BudgetDetailDialog({
                 Convertir a factura
               </Button>
             )}
+            {/* Eliminar: no permitido cuando el presupuesto ya fue convertido
+                en factura. La factura mantiene la referencia a su origen y el
+                presupuesto debe conservarse para trazabilidad legal/contable. */}
             <Button
               variant="ghost"
               className="text-destructive hover:text-destructive"
               onClick={() => setConfirmDeleteOpen(true)}
-              disabled={!budget || isLoading}
+              disabled={!budget || isLoading || isConverted}
+              title={isConverted ? "No se pueden eliminar presupuestos convertidos a factura" : undefined}
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Eliminar
