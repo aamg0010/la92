@@ -30,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Loader2 } from "lucide-react";
 import { useCreatePatient } from "@/hooks/usePatients";
+import { NewPatientConsentsPrompt } from "@/components/legal/NewPatientConsentsPrompt";
 
 const patientSchema = z.object({
   first_name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(50),
@@ -71,6 +72,12 @@ interface NewPatientDialogProps {
 export function NewPatientDialog({ trigger, onSuccess }: NewPatientDialogProps) {
   const [open, setOpen] = useState(false);
   const createPatient = useCreatePatient();
+  const [createdPatient, setCreatedPatient] = useState<{
+    id: string;
+    fullName: string;
+    phone: string | null;
+    email: string | null;
+  } | null>(null);
 
   const form = useForm<PatientFormData>({
     resolver: zodResolver(patientSchema),
@@ -115,6 +122,13 @@ export function NewPatientDialog({ trigger, onSuccess }: NewPatientDialogProps) 
       
       form.reset();
       setOpen(false);
+      // Triggerea el flujo de consentimientos del paciente recien creado
+      setCreatedPatient({
+        id: result.id,
+        fullName: `${data.first_name} ${data.last_name}`.trim(),
+        phone: data.phone || null,
+        email: data.email || null,
+      });
       onSuccess?.(result.id);
     } catch (error) {
       // Error handled by mutation
@@ -122,6 +136,7 @@ export function NewPatientDialog({ trigger, onSuccess }: NewPatientDialogProps) 
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
@@ -427,5 +442,17 @@ export function NewPatientDialog({ trigger, onSuccess }: NewPatientDialogProps) 
         </Form>
       </DialogContent>
     </Dialog>
+
+    {createdPatient && (
+      <NewPatientConsentsPrompt
+        open={true}
+        onOpenChange={(v) => !v && setCreatedPatient(null)}
+        patientId={createdPatient.id}
+        patientName={createdPatient.fullName}
+        patientPhone={createdPatient.phone}
+        patientEmail={createdPatient.email}
+      />
+    )}
+    </>
   );
 }
