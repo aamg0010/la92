@@ -28,6 +28,7 @@ import Administracion from "./pages/Administracion";
 import Configuracion from "./pages/Configuracion";
 import Tratamientos from "./pages/Tratamientos";
 import Fichaje from "./pages/Fichaje";
+import RemoteSignature from "./pages/RemoteSignature";
 import { PlaceholderPage } from "./components/layout/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 
@@ -54,6 +55,9 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
+
+            {/* Public route for remote signature (patients accessing from mobile via token) */}
+            <Route path="/firma/:token" element={<RemoteSignature />} />
 
             {/* Admin panel routes (superadmin only) */}
             <Route path="/admin/login" element={<AdminLogin />} />
