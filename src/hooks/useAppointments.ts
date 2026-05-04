@@ -49,12 +49,10 @@ export function useAppointments(startDate?: string, endDate?: string) {
   return useQuery({
     queryKey: ["appointments", startDate, endDate],
     queryFn: async () => {
-      // PostgREST supports embedded resources with foreign keys.
-      // Usamos !left para left-join explícito: las urgencias pueden tener patient_id NULL
-      // y un join interno haría desaparecer esas citas del listado.
+      // PostgREST: los embeds son left-join por defecto, no usar !left (sintaxis invalida).
       let queryBuilder = api
         .from<Appointment>("appointments")
-        .select("*,patient:patients!left(id,first_name,last_name,phone)")
+        .select("*,patient:patients(id,first_name,last_name,phone)")
         .order("appointment_date", { ascending: true });
 
       if (startDate) {
@@ -79,7 +77,7 @@ export function useAppointmentsByDate(date: string) {
     queryFn: async () => {
       const { data, error } = await api
         .from<Appointment>("appointments")
-        .select("*,patient:patients!left(id,first_name,last_name,phone)")
+        .select("*,patient:patients(id,first_name,last_name,phone)")
         .eq("appointment_date", date)
         .order("start_time", { ascending: true });
 
@@ -103,7 +101,7 @@ export function useCreateAppointment() {
       const { data, error } = await api
         .from<Appointment>("appointments")
         .insert(appointment)
-        .select("*,patient:patients!left(id,first_name,last_name,phone)");
+        .select("*,patient:patients(id,first_name,last_name,phone)");
 
       if (error) throw error;
       const row = Array.isArray(data) ? data[0] : data;
