@@ -463,16 +463,17 @@ const Cobros = () => {
         initialPatientId={selectedPatientId || undefined}
       />
 
-      {/* Payment Receipt Dialog */}
+      {/* Payment Receipt Dialog - detalle al hacer click en pagos recientes.
+          Muestra recibo completo, paciente, factura asociada y notas/concepto. */}
       <Dialog open={!!selectedPayment} onOpenChange={() => setSelectedPayment(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="w-5 h-5" />
-              Recibo de Pago
+              Detalle del Pago
             </DialogTitle>
             <DialogDescription>
-              Detalles del pago registrado
+              Recibo, concepto y factura asociada
             </DialogDescription>
           </DialogHeader>
           {selectedPayment && (
@@ -491,6 +492,13 @@ const Cobros = () => {
                   last_name: selectedPayment.patient.last_name,
                   document_number: "",
                   phone: selectedPayment.patient.phone,
+                } : undefined}
+                invoice={selectedPayment.invoice ? {
+                  invoice_number: selectedPayment.invoice.invoice_number,
+                  total: Number(selectedPayment.invoice.total),
+                  // issue_date viene del embed (usePayments lo solicita).
+                  // Si por alguna razon no llega, caemos a payment_date.
+                  issue_date: selectedPayment.invoice.issue_date ?? selectedPayment.payment_date,
                 } : undefined}
               />
               <div className="flex gap-2">

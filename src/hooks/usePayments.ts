@@ -25,6 +25,7 @@ export interface Payment {
     id: string;
     invoice_number: string;
     total: number;
+    issue_date?: string;
   } | null;
 }
 
@@ -72,7 +73,9 @@ export function usePayments(filters?: {
     queryFn: async () => {
       let query = api
         .from<Payment>("payments")
-        .select("*,patient:patients(id,first_name,last_name,phone),invoice:invoices(id,invoice_number,total)")
+        .select(
+          "*,patient:patients(id,first_name,last_name,phone),invoice:invoices(id,invoice_number,total,issue_date)",
+        )
         .order("payment_date", { ascending: false });
 
       if (filters?.startDate) {
