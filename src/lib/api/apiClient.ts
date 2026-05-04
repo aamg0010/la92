@@ -210,7 +210,7 @@ class QueryBuilder<T = unknown> {
       if (this.returnSingle) {
         const data = Array.isArray(result.data) ? result.data[0] : result.data;
         if (!data && !this.returnMaybeSingle) {
-          return { data: null, error: new Error('Row not found') };
+          return { data: null, error: new Error(`Row not found in ${this.table}`) };
         }
         return { ...result, data };
       }

@@ -49,10 +49,12 @@ export function useAppointments(startDate?: string, endDate?: string) {
   return useQuery({
     queryKey: ["appointments", startDate, endDate],
     queryFn: async () => {
-      // PostgREST supports embedded resources with foreign keys
+      // PostgREST supports embedded resources with foreign keys.
+      // Usamos !left para left-join explícito: las urgencias pueden tener patient_id NULL
+      // y un join interno haría desaparecer esas citas del listado.
       let queryBuilder = api
         .from<Appointment>("appointments")
-        .select("*,patient:patients(id,first_name,last_name,phone)")
+        .select("*,patient:patients!left(id,first_name,last_name,phone)")
         .order("appointment_date", { ascending: true });
 
       if (startDate) {
@@ -77,7 +79,7 @@ export function useAppointmentsByDate(date: string) {
     queryFn: async () => {
       const { data, error } = await api
         .from<Appointment>("appointments")
-        .select("*,patient:patients(id,first_name,last_name,phone)")
+        .select("*,patient:patients!left(id,first_name,last_name,phone)")
         .eq("appointment_date", date)
         .order("start_time", { ascending: true });
 
@@ -95,14 +97,17 @@ export function useCreateAppointment() {
 
   return useMutation({
     mutationFn: async (appointment: AppointmentInsert) => {
+      // Importante: NO usamos .single() con embed de paciente porque las urgencias
+      // pueden insertarse con patient_id NULL y el embed dispararía error.
+      // En su lugar, insertamos pidiendo array y nos quedamos con la primera fila.
       const { data, error } = await api
         .from<Appointment>("appointments")
         .insert(appointment)
-        .select("*,patient:patients(id,first_name,last_name,phone)")
-        .single();
+        .select("*,patient:patients!left(id,first_name,last_name,phone)");
 
       if (error) throw error;
-      return data;
+      const row = Array.isArray(data) ? data[0] : data;
+      return row as Appointment;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
