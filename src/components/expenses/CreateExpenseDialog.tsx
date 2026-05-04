@@ -255,7 +255,6 @@ export function CreateExpenseDialog({
                 id="amount"
                 value={amount}
                 onChange={setAmount}
-                currency="COP"
                 required
               />
             </div>

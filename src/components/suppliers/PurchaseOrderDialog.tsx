@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useSuppliers, useCreatePurchaseOrder } from "@/hooks/useSuppliers";
+import { useCurrency } from "@/hooks/useCurrency";
 import { Loader2 } from "lucide-react";
 
 interface OrderItem {
@@ -57,6 +58,7 @@ export function PurchaseOrderDialog({
 
   const { data: suppliers = [] } = useSuppliers();
   const createMutation = useCreatePurchaseOrder();
+  const { formatMoney } = useCurrency();
 
   const addItem = () => {
     if (!newDescription || !newQuantity || !newUnitPrice) return;
@@ -212,10 +214,10 @@ export function PurchaseOrderDialog({
                         {item.quantity}
                       </TableCell>
                       <TableCell className="text-right">
-                        ${item.unit_price.toLocaleString("es-CO")}
+                        {formatMoney(item.unit_price)}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        ${(item.quantity * item.unit_price).toLocaleString("es-CO")}
+                        {formatMoney(item.quantity * item.unit_price)}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -233,7 +235,7 @@ export function PurchaseOrderDialog({
                       Total:
                     </TableCell>
                     <TableCell className="text-right font-bold text-lg">
-                      ${subtotal.toLocaleString("es-CO")}
+                      {formatMoney(subtotal)}
                     </TableCell>
                     <TableCell></TableCell>
                   </TableRow>

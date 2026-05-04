@@ -7,10 +7,17 @@ import { useState, useEffect, useRef, forwardRef } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { type CurrencyCode, CURRENCIES } from "@/lib/utils/currency";
+import { useCurrency } from "@/hooks/useCurrency";
 
 interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> {
   value: number | string;
   onChange: (value: number) => void;
+  /**
+   * Moneda a usar para formateo. Si no se pasa, se toma del CurrencyContext
+   * (clinic_settings.currency). Esto garantiza que cada clínica vea su
+   * moneda configurada (COP para Colombia, EUR para España, etc.) sin
+   * forzar a cada formulario a leerla manualmente.
+   */
   currency?: CurrencyCode;
 }
 
@@ -56,7 +63,11 @@ function parseFormattedValue(value: string, currency: CurrencyCode): number {
 }
 
 export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(
-  ({ value, onChange, currency = "COP", className, placeholder, ...props }, ref) => {
+  ({ value, onChange, currency: currencyProp, className, placeholder, ...props }, ref) => {
+    // Si el caller no fuerza un currency, usamos el del contexto del tenant.
+    // Default a COP solo si no estamos dentro de un CurrencyProvider (tests).
+    const { currency: ctxCurrency } = useCurrency();
+    const currency: CurrencyCode = currencyProp ?? ctxCurrency;
     const [displayValue, setDisplayValue] = useState("");
     const [isFocused, setIsFocused] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);

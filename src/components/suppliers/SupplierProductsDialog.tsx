@@ -34,6 +34,7 @@ import {
 } from "@/hooks/useSuppliers";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/apiClient";
+import { useCurrency } from "@/hooks/useCurrency";
 
 interface SupplierProductsDialogProps {
   open: boolean;
@@ -57,6 +58,7 @@ export function SupplierProductsDialog({
   );
   const addMutation = useAddSupplierProduct();
   const deleteMutation = useDeleteSupplierProduct();
+  const { formatMoney } = useCurrency();
 
   // Fetch inventory items for linking
   const { data: inventoryItems = [] } = useQuery({
@@ -208,7 +210,7 @@ export function SupplierProductsDialog({
                       {product.supplier_sku || "—"}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      ${product.unit_price.toLocaleString("es-CO")}
+                      {formatMoney(product.unit_price)}
                     </TableCell>
                     <TableCell>
                       {product.inventory_item ? (

@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Treatment, useDeleteTreatment } from "@/hooks/useTreatments";
+import { useCurrency } from "@/hooks/useCurrency";
 
 interface TreatmentsTableProps {
   treatments: Treatment[];
@@ -36,6 +37,7 @@ interface TreatmentsTableProps {
 export function TreatmentsTable({ treatments, onEdit }: TreatmentsTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const deleteMutation = useDeleteTreatment();
+  const { formatMoney } = useCurrency();
 
   const handleDelete = async () => {
     if (deleteId) {
@@ -84,7 +86,7 @@ export function TreatmentsTable({ treatments, onEdit }: TreatmentsTableProps) {
                     <Badge variant="outline">{treatment.category || "—"}</Badge>
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    ${treatment.base_price.toLocaleString("es-CO")}
+                    {formatMoney(treatment.base_price)}
                   </TableCell>
                   <TableCell className="text-center">
                     {treatment.duration_minutes ? (

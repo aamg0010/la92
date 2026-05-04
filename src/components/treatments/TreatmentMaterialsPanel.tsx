@@ -27,6 +27,7 @@ import {
 } from "@/hooks/useTreatments";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/apiClient";
+import { useCurrency } from "@/hooks/useCurrency";
 
 interface TreatmentMaterialsPanelProps {
   treatmentId: string;
@@ -42,6 +43,7 @@ export function TreatmentMaterialsPanel({
   const { data: materials = [], isLoading } = useTreatmentMaterials(treatmentId);
   const addMutation = useAddTreatmentMaterial();
   const removeMutation = useRemoveTreatmentMaterial();
+  const { formatMoney } = useCurrency();
 
   // Fetch inventory items for selection
   const { data: inventoryItems = [] } = useQuery({
@@ -95,7 +97,7 @@ export function TreatmentMaterialsPanel({
           <h4 className="font-medium">Materiales Requeridos</h4>
         </div>
         <Badge variant="outline">
-          Costo estimado: ${totalCost.toLocaleString("es-CO")}
+          Costo estimado: {formatMoney(totalCost)}
         </Badge>
       </div>
 
@@ -181,10 +183,10 @@ export function TreatmentMaterialsPanel({
                     {material.inventory_item?.unit || ""}
                   </TableCell>
                   <TableCell className="text-right">
-                    ${unitCost.toLocaleString("es-CO")}
+                    {formatMoney(unitCost)}
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    ${subtotal.toLocaleString("es-CO")}
+                    {formatMoney(subtotal)}
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge

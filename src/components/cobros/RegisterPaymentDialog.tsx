@@ -352,7 +352,6 @@ export function RegisterPaymentDialog({
               id="amount"
               value={amount}
               onChange={setAmount}
-              currency="COP"
               required
             />
           </div>

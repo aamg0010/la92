@@ -14,6 +14,7 @@ import {
 import { useTreatments, Treatment, TREATMENT_CATEGORIES } from "@/hooks/useTreatments";
 import { useSuppliers, Supplier, usePurchaseOrders, PURCHASE_ORDER_STATUS } from "@/hooks/useSuppliers";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useCurrency } from "@/hooks/useCurrency";
 import { TreatmentDialog } from "@/components/treatments/TreatmentDialog";
 import { TreatmentsTable } from "@/components/treatments/TreatmentsTable";
 import { SupplierDialog } from "@/components/suppliers/SupplierDialog";
@@ -34,6 +35,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
 export default function Tratamientos() {
+  const { formatMoney } = useCurrency();
   const [activeTab, setActiveTab] = useState("tratamientos");
   
   // Treatments state
@@ -271,7 +273,7 @@ export default function Tratamientos() {
                               : "—"}
                           </TableCell>
                           <TableCell className="text-right font-medium">
-                            ${order.total.toLocaleString("es-CO")}
+                            {formatMoney(order.total)}
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge className={statusInfo?.color}>
